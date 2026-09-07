@@ -1,0 +1,213 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "I Can Read",
+
+  "navToday": "Today",
+  "navLibrary": "Library",
+  "navStats": "Stats",
+  "navSettings": "Settings",
+
+  "actionCancel": "Cancel",
+  "actionSave": "Save",
+  "actionNext": "Next",
+  "actionBack": "Back",
+  "actionDone": "Done",
+  "actionRetry": "Retry",
+  "actionDelete": "Delete",
+
+  "addBook": "Add a book",
+  "pickPdfFile": "Choose a PDF file",
+  "importCopying": "Copying the file…",
+  "importHashing": "Reading the file…",
+  "importReadingPages": "Counting pages…",
+  "importFailed": "Could not import this file",
+  "importNotAPdf": "The selected file is not a valid PDF",
+  "bookTitle": "Title",
+  "bookAuthor": "Author",
+  "bookAuthorOptional": "Author (optional)",
+  "bookPageCount": "{count, plural, =1{1 page} other{{count} pages}}",
+  "@bookPageCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "addBookIntro": "Choose a PDF from your device",
+  "addBookIntroHint": "The file is copied into the app and stays on this device. It is never uploaded.",
+  "addBookDetails": "Book details",
+  "addBookSave": "Save book",
+  "addBookChooseAnother": "Choose a different file",
+  "addBookTitleRequired": "Give the book a title",
+  "addBookSaved": "Added \"{title}\"",
+  "@addBookSaved": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookDuplicate": "You already have this book",
+  "addBookDuplicateBody": "\"{title}\" is already in your library, so this file was discarded.",
+  "@addBookDuplicateBody": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookRelinked": "Found \"{title}\" and linked this file to it",
+  "@addBookRelinked": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookOpenExisting": "Go to the book",
+
+  "libraryEmpty": "No books yet.",
+  "libraryEmptyHint": "Add a PDF and pick a goal — “finish in 30 days” or “15 pages a day” — and we'll do the rest.",
+  "libraryBookCount": "{count, plural, =0{No books} one{1 book} other{{count} books}}",
+  "@libraryBookCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "libraryLocateFile": "Locate the file",
+  "libraryNoPlanYet": "No plan yet — pick a goal",
+  "libraryReadOfTotal": "{read} of {total} pages",
+  "@libraryReadOfTotal": {
+    "placeholders": {
+      "read": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "libraryDailyPortion": "{count, plural, =1{1 page a day} other{{count} pages a day}}",
+  "@libraryDailyPortion": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "libraryTabReading": "Reading",
+  "libraryTabFinished": "Finished",
+  "libraryTabArchived": "Archived",
+  "fileMissing": "File not on this device",
+  "fileMissingHint": "Tap to locate the PDF",
+
+  "planCreate": "Create a plan",
+  "planEdit": "Edit the plan",
+  "planStart": "Start the plan",
+  "planModeByDeadline": "Finish by a date",
+  "planModeByPagesPerDay": "Pages per day",
+  "planStartPage": "Start from page",
+  "planStartPageHint": "To skip the front matter and the contents",
+  "planEndPage": "End at page",
+  "planTargetDate": "Target finish date",
+  "planPagesPerDay": "Pages per day",
+  "planPageMore": "One page more",
+  "planPageFewer": "One page fewer",
+  "planPagesPerDayMore": "One page a day more",
+  "planPagesPerDayFewer": "One page a day fewer",
+  "planPreview": "You'll read {pages} pages a day and finish on {date}.",
+  "@planPreview": {
+    "description": "The wizard's hero sentence. Both values are set apart typographically, so they are substituted as text rather than formatted numbers.",
+    "placeholders": {
+      "pages": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+  "planDayCount": "{count, plural, =1{1 day} other{{count} days}}",
+  "@planDayCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "planPagesFromPage": "{count, plural, =1{1 page from page {start}} other{{count} pages from page {start}}}",
+  "@planPagesFromPage": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "start": { "type": "int" }
+    }
+  },
+  "planTotalPages": "{count} pages total",
+  "@planTotalPages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "sessionsTitle": "Reading sessions",
+  "sessionsHint": "Split your daily pages across times of day",
+  "sessionsHintWithPages": "Split your daily portion — {pages} pages — across times of day.",
+  "@sessionsHintWithPages": {
+    "placeholders": { "pages": { "type": "int" } }
+  },
+  "sessionAdd": "Add a session",
+  "sessionRemove": "Remove this session",
+  "sessionChangeTime": "Change the time",
+  "sessionPagesMore": "One page more in this session",
+  "sessionPagesFewer": "One page fewer in this session",
+  "sessionPeriodMorning": "in the morning",
+  "sessionPeriodAfternoon": "in the afternoon",
+  "sessionPeriodEvening": "in the evening",
+  "sessionPeriodNight": "at night",
+  "sessionsNote": "The reminder arrives at this time every day. A session you miss does not roll over — tomorrow's portion is the same {pages} pages.",
+  "@sessionsNote": {
+    "placeholders": { "pages": { "type": "int" } }
+  },
+  "sessionsSplitLabel": "{count, plural, =1{1 page {period}} other{{count} pages {period}}}",
+  "@sessionsSplitLabel": {
+    "description": "The caption under one segment of the split bar, e.g. \"8 pages in the morning\".",
+    "placeholders": {
+      "count": { "type": "int" },
+      "period": { "type": "String" }
+    }
+  },
+  "sessionsEdit": "Reading sessions",
+  "sessionsContinue": "Continue to sessions",
+  "sessionPages": "{count, plural, =1{1 page} other{{count} pages}}",
+  "@sessionPages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sessionsTooMany": "Too many sessions. Keep the total across all books under {max}.",
+  "@sessionsTooMany": {
+    "placeholders": { "max": { "type": "int" } }
+  },
+  "sessionsMorePagesThanSessions": "You have fewer pages per day than sessions. Some sessions will be empty.",
+
+  "todayEmpty": "Nothing to read today.",
+  "todayEmptyHint": "Add a book and pick a goal — “finish in 30 days” or “15 pages a day” — and we'll do the rest.",
+  "statsEmpty": "Nothing to show yet.",
+  "statsEmptyHint": "Once you've read for a few days, your pace and your finished books appear here.",
+  "statsWindowLast30Days": "Last 30 days",
+  "todayReadNow": "Read now",
+  "todayDone": "Done",
+  "todayRemaining": "{count} pages left today",
+  "@todayRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "readerFinishSession": "I finished my portion",
+  "readerPageOf": "Page {current} of {total}",
+  "@readerPageOf": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "progressBehindDays": "{count, plural, =1{1 day behind} other{{count} days behind}}",
+  "@progressBehindDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "progressAheadDays": "{count, plural, =1{1 day ahead} other{{count} days ahead}}",
+  "@progressAheadDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "progressOnTrack": "On track",
+  "progressProjectedEnd": "Projected finish: {date}",
+  "@progressProjectedEnd": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "notificationTitle": "Time to read",
+  "notificationBody": "{pages} pages from {book}",
+  "@notificationBody": {
+    "placeholders": {
+      "pages": { "type": "int" },
+      "book": { "type": "String" }
+    }
+  },
+  "notificationPermissionTitle": "Allow notifications",
+  "notificationPermissionBody": "We'll remind you at the times you pick. No reminders without this.",
+  "notificationExactAlarms": "Precise reminder times",
+  "notificationExactAlarmsHint": "Off by default. Reminders may arrive a few minutes late so the app uses less battery.",
+
+  "settingsLanguage": "Language",
+  "settingsLanguageArabic": "العربية",
+  "settingsLanguageEnglish": "English",
+  "settingsLanguageSystem": "Follow system",
+  "settingsTheme": "Theme",
+  "settingsThemeSystem": "System",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark"
+}

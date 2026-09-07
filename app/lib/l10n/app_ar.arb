@@ -1,0 +1,213 @@
+{
+  "@@locale": "ar",
+
+  "appTitle": "أقدر أقرأ",
+
+  "navToday": "وردي اليوم",
+  "navLibrary": "مكتبتي",
+  "navStats": "إحصائياتي",
+  "navSettings": "الإعدادات",
+
+  "actionCancel": "إلغاء",
+  "actionSave": "حفظ",
+  "actionNext": "التالي",
+  "actionBack": "رجوع",
+  "actionDone": "تم",
+  "actionRetry": "إعادة المحاولة",
+  "actionDelete": "حذف",
+
+  "addBook": "إضافة كتاب",
+  "pickPdfFile": "اختر ملف PDF",
+  "importCopying": "جارٍ نسخ الملف…",
+  "importHashing": "جارٍ قراءة الملف…",
+  "importReadingPages": "جارٍ حساب الصفحات…",
+  "importFailed": "تعذّر استيراد هذا الملف",
+  "importNotAPdf": "الملف المختار ليس ملف PDF صالحاً",
+  "bookTitle": "العنوان",
+  "bookAuthor": "المؤلف",
+  "bookAuthorOptional": "المؤلف (اختياري)",
+  "bookPageCount": "{count, plural, zero{لا صفحات} one{صفحة واحدة} two{صفحتان} few{{count} صفحات} many{{count} صفحة} other{{count} صفحة}}",
+  "@bookPageCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "addBookIntro": "اختر ملف PDF من جهازك",
+  "addBookIntroHint": "الملف هيتنسخ جوّه التطبيق ويفضل على الجهاز ده. مش بيترفع على أي سيرفر.",
+  "addBookDetails": "بيانات الكتاب",
+  "addBookSave": "احفظ الكتاب",
+  "addBookChooseAnother": "اختر ملف تاني",
+  "addBookTitleRequired": "اكتب عنوان للكتاب",
+  "addBookSaved": "تمت إضافة «{title}»",
+  "@addBookSaved": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookDuplicate": "الكتاب ده موجود عندك بالفعل",
+  "addBookDuplicateBody": "«{title}» موجود في مكتبتك، فتم التخلص من الملف الجديد.",
+  "@addBookDuplicateBody": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookRelinked": "لقينا «{title}» وربطنا الملف ده بيه",
+  "@addBookRelinked": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "addBookOpenExisting": "روح للكتاب",
+
+  "libraryEmpty": "مفيش كتب لسه.",
+  "libraryEmptyHint": "أضف كتاب واختار هدف — «أخلّصه في ٣٠ يوم» أو «١٥ صفحة في اليوم» — والباقي علينا.",
+  "libraryBookCount": "{count, plural, =0{مفيش كتب} one{كتاب واحد} two{كتابين} few{{count} كتب} many{{count} كتاب} other{{count} كتاب}}",
+  "@libraryBookCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "libraryLocateFile": "حدّد الملف",
+  "libraryNoPlanYet": "لسه مفيش خطة — حدّد هدفك",
+  "libraryReadOfTotal": "{read} من {total} صفحة",
+  "@libraryReadOfTotal": {
+    "placeholders": {
+      "read": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "libraryDailyPortion": "{count, plural, one{صفحة واحدة يومياً} two{صفحتين يومياً} few{{count} صفحات يومياً} many{{count} صفحة يومياً} other{{count} صفحة يومياً}}",
+  "@libraryDailyPortion": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "libraryTabReading": "بقرأ فيه",
+  "libraryTabFinished": "خلّصته",
+  "libraryTabArchived": "مؤرشف",
+  "fileMissing": "الملف مش موجود على الجهاز ده",
+  "fileMissingHint": "اضغط عشان تحدّد ملف الـ PDF",
+
+  "planCreate": "إنشاء خطة",
+  "planEdit": "تعديل الخطة",
+  "planStart": "ابدأ الختمة",
+  "planModeByDeadline": "أخلّصه في تاريخ محدد",
+  "planModeByPagesPerDay": "صفحات في اليوم",
+  "planStartPage": "ابدأ من صفحة",
+  "planStartPageHint": "لو عايز تعدّي المقدمة والفهرس",
+  "planEndPage": "انتهِ عند صفحة",
+  "planTargetDate": "تاريخ الانتهاء المستهدف",
+  "planPagesPerDay": "صفحات في اليوم",
+  "planPageMore": "صفحة أكتر",
+  "planPageFewer": "صفحة أقل",
+  "planPagesPerDayMore": "صفحة في اليوم أكتر",
+  "planPagesPerDayFewer": "صفحة في اليوم أقل",
+  "planPreview": "هتقرأ {pages} صفحة يومياً وتخلّص يوم {date}.",
+  "@planPreview": {
+    "description": "The wizard's hero sentence. Both values are set apart typographically, so they are substituted as text rather than formatted numbers.",
+    "placeholders": {
+      "pages": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+  "planDayCount": "{count, plural, one{يوم واحد} two{يومين} few{{count} أيام} many{{count} يوم} other{{count} يوم}}",
+  "@planDayCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "planPagesFromPage": "{count, plural, one{صفحة واحدة من صفحة {start}} two{صفحتين من صفحة {start}} few{{count} صفحات من صفحة {start}} many{{count} صفحة من صفحة {start}} other{{count} صفحة من صفحة {start}}}",
+  "@planPagesFromPage": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "start": { "type": "int" }
+    }
+  },
+  "planTotalPages": "{count} صفحة إجمالاً",
+  "@planTotalPages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "sessionsTitle": "جلسات القراءة",
+  "sessionsHint": "قسّم وردك اليومي على أوقات مختلفة",
+  "sessionsHintWithPages": "قسّم وردك اليومي — {pages} صفحة — على أوقات مختلفة.",
+  "@sessionsHintWithPages": {
+    "placeholders": { "pages": { "type": "int" } }
+  },
+  "sessionAdd": "إضافة جلسة",
+  "sessionRemove": "احذف الجلسة دي",
+  "sessionChangeTime": "غيّر الوقت",
+  "sessionPagesMore": "صفحة أكتر في الجلسة دي",
+  "sessionPagesFewer": "صفحة أقل في الجلسة دي",
+  "sessionPeriodMorning": "الصبح",
+  "sessionPeriodAfternoon": "بالظهر",
+  "sessionPeriodEvening": "بالمغرب",
+  "sessionPeriodNight": "بالليل",
+  "sessionsNote": "التذكير هيوصلك في الوقت ده كل يوم. الجلسة اللي بتفوتها مش بتتنقل لبكره — ورد بكره هو نفسه {pages} صفحة.",
+  "@sessionsNote": {
+    "placeholders": { "pages": { "type": "int" } }
+  },
+  "sessionsSplitLabel": "{count, plural, one{صفحة واحدة {period}} two{صفحتين {period}} few{{count} صفحات {period}} many{{count} صفحة {period}} other{{count} صفحة {period}}}",
+  "@sessionsSplitLabel": {
+    "description": "The caption under one segment of the split bar, e.g. \"8 صفحات الصبح\".",
+    "placeholders": {
+      "count": { "type": "int" },
+      "period": { "type": "String" }
+    }
+  },
+  "sessionsEdit": "جلسات القراءة",
+  "sessionsContinue": "كمّل للجلسات",
+  "sessionPages": "{count, plural, zero{لا صفحات} one{صفحة واحدة} two{صفحتان} few{{count} صفحات} many{{count} صفحة} other{{count} صفحة}}",
+  "@sessionPages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sessionsTooMany": "عدد الجلسات كبير. خلّي الإجمالي عبر كل الكتب أقل من {max}.",
+  "@sessionsTooMany": {
+    "placeholders": { "max": { "type": "int" } }
+  },
+  "sessionsMorePagesThanSessions": "ورد اليوم أقل من عدد الجلسات، فبعض الجلسات هتفضل فاضية.",
+
+  "todayEmpty": "مفيش ورد النهارده.",
+  "todayEmptyHint": "أضف كتاب واختار هدف — «أخلّصه في ٣٠ يوم» أو «١٥ صفحة في اليوم» — والباقي علينا.",
+  "statsEmpty": "لسه مفيش حاجة نعرضها.",
+  "statsEmptyHint": "بعد ما تقرأ كام يوم، هتلاقي هنا إيقاعك والكتب اللي خلّصتها.",
+  "statsWindowLast30Days": "آخر ٣٠ يوم",
+  "todayReadNow": "اقرأ دلوقتي",
+  "todayDone": "تم",
+  "todayRemaining": "فاضل {count} صفحة النهارده",
+  "@todayRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "readerFinishSession": "أنهيت وردي",
+  "readerPageOf": "صفحة {current} من {total}",
+  "@readerPageOf": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "progressBehindDays": "{count, plural, one{متأخر يوم} two{متأخر يومين} few{متأخر {count} أيام} many{متأخر {count} يوماً} other{متأخر {count} يوم}}",
+  "@progressBehindDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "progressAheadDays": "{count, plural, one{متقدم يوم} two{متقدم يومين} few{متقدم {count} أيام} many{متقدم {count} يوماً} other{متقدم {count} يوم}}",
+  "@progressAheadDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "progressOnTrack": "ماشي على الخطة",
+  "progressProjectedEnd": "الانتهاء المتوقّع: {date}",
+  "@progressProjectedEnd": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "notificationTitle": "وقت وردك",
+  "notificationBody": "{pages} صفحة من {book}",
+  "@notificationBody": {
+    "placeholders": {
+      "pages": { "type": "int" },
+      "book": { "type": "String" }
+    }
+  },
+  "notificationPermissionTitle": "اسمح بالإشعارات",
+  "notificationPermissionBody": "هنفكّرك في المواعيد اللي تختارها. من غير الإذن ده مفيش تذكيرات.",
+  "notificationExactAlarms": "مواعيد تذكير دقيقة",
+  "notificationExactAlarmsHint": "مقفولة افتراضياً. التذكير ممكن يتأخر دقائق قليلة عشان التطبيق يستهلك بطارية أقل.",
+
+  "settingsLanguage": "اللغة",
+  "settingsLanguageArabic": "العربية",
+  "settingsLanguageEnglish": "English",
+  "settingsLanguageSystem": "لغة النظام",
+  "settingsTheme": "المظهر",
+  "settingsThemeSystem": "حسب النظام",
+  "settingsThemeLight": "فاتح",
+  "settingsThemeDark": "داكن"
+}

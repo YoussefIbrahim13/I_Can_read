@@ -1,0 +1,23 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "lib/l10n/app_localizations*.dart"
+  errors:
+    # Missing translations should never silently ship.
+    missing_required_param: error
+    missing_return: error
+
+linter:
+  rules:
+    # This app is bilingual (ar/en) and must mirror correctly.
+    # Convention, not lint-enforceable: always use EdgeInsetsDirectional,
+    # AlignmentDirectional, and *Start/*End over left/right.
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - prefer_final_locals
+    - prefer_single_quotes
+    - require_trailing_commas
+    - unawaited_futures
+    - use_super_parameters

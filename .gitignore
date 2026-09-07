@@ -1,0 +1,39 @@
+# Flutter / Dart
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/build/
+app/.idea/
+**/*.g.dart
+**/*.freezed.dart
+app/lib/l10n/app_localizations*.dart
+
+# Android
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/android/key.properties
+*.jks
+*.keystore
+
+# iOS
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/ios/Flutter/flutter_export_environment.sh
+
+# Windows
+app/windows/flutter/ephemeral/
+
+# .NET (Phase 2)
+server/**/bin/
+server/**/obj/
+server/**/appsettings.Development.json
+server/**/*.user
+
+# Editors / OS
+.vscode/
+.DS_Store
+Thumbs.db
