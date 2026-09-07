@@ -19,6 +19,12 @@ class RecordingChannel implements ReminderChannel {
   List<Reminder> get latest => passes.isEmpty ? const [] : passes.last;
 
   @override
+  Stream<String> get taps => const Stream.empty();
+
+  @override
+  Future<String?> takeLaunchPayload() async => null;
+
+  @override
   Future<bool> requestPermission() async => true;
 
   @override

@@ -1,6 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+// Also the source of `Uint8List` here; a separate `dart:typed_data` import
+// would be flagged as redundant.
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -20,13 +23,46 @@ import 'package:path_provider/path_provider.dart';
 class BookFileStore {
   BookFileStore(this.documentsDirectory);
 
-  static Future<BookFileStore> open() async =>
-      BookFileStore(await getApplicationDocumentsDirectory());
+  static Future<BookFileStore> open() async {
+    final store = BookFileStore(await getApplicationDocumentsDirectory());
+    await store._excludeBooksFromICloud();
+    return store;
+  }
 
   /// Resolved at runtime, never persisted.
   final Directory documentsDirectory;
 
   static const _booksDirectory = 'books';
+
+  /// Talks to `AppDelegate.swift`. iOS only; nothing implements it elsewhere.
+  static const _platform = MethodChannel('icanread/book_files');
+
+  /// Keeps the reader's PDFs out of iCloud.
+  ///
+  /// iOS backs the documents directory up by default, which would upload every
+  /// imported book — the one thing the app promises not to do. The Android
+  /// equivalent is `android:allowBackup="false"` in the manifest.
+  ///
+  /// The flag lives on the directory itself and is inherited by everything
+  /// created inside it, so it is set on `books/` rather than on each file, and
+  /// the directory has to exist first — hence the [Directory.create] here as
+  /// well as in [write]. Re-applying it at every launch is one syscall and it
+  /// is what repairs an install that was made before this code existed.
+  Future<void> _excludeBooksFromICloud() async {
+    if (!Platform.isIOS) return;
+
+    final books = Directory(p.join(documentsDirectory.path, _booksDirectory));
+    await books.create(recursive: true);
+    try {
+      await _platform.invokeMethod<void>('excludeFromBackup', books.path);
+    } catch (error) {
+      // Refusing to start would be worse than starting: the reader has no way
+      // to act on this, and the books are already on the device. Loud in debug,
+      // survivable in release, retried on the next launch.
+      debugPrint('Could not exclude books/ from iCloud backup: $error');
+      assert(false, 'Could not exclude books/ from iCloud backup: $error');
+    }
+  }
 
   /// The stable, device-independent path recorded in the database.
   String relativePathFor(String bookId) =>

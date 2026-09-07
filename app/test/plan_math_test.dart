@@ -497,4 +497,66 @@ void main() {
       expect(lastPage, 103);
     });
   });
+
+  group('readingDay', () {
+    test('daytime belongs to its own calendar day', () {
+      expect(readingDay(DateTime(2026, 1, 7, 9, 30)), _jan(7));
+      expect(readingDay(DateTime(2026, 1, 7, 23, 59)), _jan(7));
+    });
+
+    test('the small hours still belong to the day before', () {
+      // Someone reading at 01:00 is finishing the day they are awake in.
+      expect(readingDay(DateTime(2026, 1, 8, 0, 0)), _jan(7));
+      expect(readingDay(DateTime(2026, 1, 8, 1, 30)), _jan(7));
+      expect(readingDay(DateTime(2026, 1, 8, 3, 59)), _jan(7));
+    });
+
+    test('the boundary itself starts the new day', () {
+      expect(readingDay(DateTime(2026, 1, 8, 4, 0)), _jan(8));
+    });
+
+    test('rolling back over a month boundary lands on the last day', () {
+      expect(readingDay(DateTime(2026, 2, 1, 2, 0)), DateTime(2026, 1, 31));
+    });
+
+    test('the boundary sits where the constant says', () {
+      expect(readingDayStartHour, 4);
+    });
+  });
+
+  group('scheduleStatus with pauses', () {
+    test('paused days are not counted against the reader', () {
+      final plan = _tenADay();
+      // Six days elapsed, four of them paused, twenty pages read: the two
+      // days that actually ran expected exactly twenty.
+      final status = scheduleStatus(
+        plan,
+        lastPageRead: 20,
+        today: _jan(7),
+        pausedDays: 4,
+      );
+
+      expect(status.expectedPages, 20);
+      expect(status.isOnTrack, isTrue);
+    });
+
+    test('without the pause the same reader looks four days behind', () {
+      final status = scheduleStatus(_tenADay(), lastPageRead: 20, today: _jan(7));
+
+      expect(status.expectedPages, 60);
+      expect(status.deltaDays, -4);
+    });
+
+    test('a pause longer than the plan cannot invent progress', () {
+      final status = scheduleStatus(
+        _tenADay(),
+        lastPageRead: 0,
+        today: _jan(7),
+        pausedDays: 99,
+      );
+
+      expect(status.expectedPages, 0);
+      expect(status.isOnTrack, isTrue);
+    });
+  });
 }

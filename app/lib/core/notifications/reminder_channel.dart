@@ -14,8 +14,22 @@ class ReminderText {
   final String body;
 }
 
-/// Where reminders go. The app owns exactly one.
+/// Where reminders go, and where taps come back from. The app owns exactly one.
 abstract interface class ReminderChannel {
+  /// Book ids from reminders the reader tapped while the app was running.
+  ///
+  /// A reminder that only raises a banner is an interruption. Tapping one has
+  /// to land on the page the reminder is about, which is why the book id is
+  /// carried as the notification's payload.
+  Stream<String> get taps;
+
+  /// The reminder that launched the app, if a reminder launched it.
+  ///
+  /// Separate from [taps] because a tap on a terminated app is not delivered
+  /// as an event — the system starts the process and hands the payload over
+  /// once, on request. Answers null every time after the first.
+  Future<String?> takeLaunchPayload();
+
   /// Asks the reader for permission to post notifications, if the platform
   /// needs asking. Returns false when the reader said no.
   Future<bool> requestPermission();
@@ -37,6 +51,12 @@ abstract interface class ReminderChannel {
 /// every call site with a null check.
 class SilentReminderChannel implements ReminderChannel {
   const SilentReminderChannel();
+
+  @override
+  Stream<String> get taps => const Stream.empty();
+
+  @override
+  Future<String?> takeLaunchPayload() async => null;
 
   @override
   Future<bool> requestPermission() async => false;

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/add_book/presentation/add_book_screen.dart';
 import '../../features/library/presentation/library_screen.dart';
 import '../../features/plan/presentation/plan_screen.dart';
+import '../../features/reader/presentation/reader_screen.dart';
 import '../../features/sessions/presentation/sessions_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/stats/presentation/stats_screen.dart';
@@ -28,6 +29,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/books/:id/plan',
         builder: (context, state) =>
             PlanScreen(bookId: state.pathParameters['id']!),
+      ),
+      // Also outside the shell: the page fills the screen, and a tab bar under
+      // it would be an invitation to stop reading.
+      GoRoute(
+        path: '/books/:id/read',
+        builder: (context, state) {
+          int? page(String name) =>
+              int.tryParse(state.uri.queryParameters[name] ?? '');
+          return ReaderScreen(
+            bookId: state.pathParameters['id']!,
+            startPage: page('page'),
+            // Absent when a tapped reminder brought the reader here; the
+            // screen works the day's portion out from the plan instead.
+            fromPage: page('from'),
+            toPage: page('to'),
+          );
+        },
       ),
       GoRoute(
         path: '/books/:id/plan/sessions',

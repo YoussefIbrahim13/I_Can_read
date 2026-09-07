@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -14,14 +16,36 @@ import 'reminder_channel.dart';
 /// app cannot rely on being run to top up a queue, and a fixed daily time is
 /// exactly what the system schedulers are built for.
 class LocalReminderChannel implements ReminderChannel {
-  LocalReminderChannel._(this._plugin);
+  LocalReminderChannel._(this.plugin, this._taps);
 
   /// The Android notification channel. Its id is baked into every posted
   /// notification, so renaming it strands the reader's per-channel settings.
   static const _channelId = 'reading_reminders';
   static const _channelName = 'Reading reminders';
 
-  final FlutterLocalNotificationsPlugin _plugin;
+  /// Public only so a device test can read back what the system actually
+  /// accepted; nothing else should reach past this class.
+  @visibleForTesting
+  final FlutterLocalNotificationsPlugin plugin;
+
+  final StreamController<String> _taps;
+
+  var _launchPayloadTaken = false;
+
+  @override
+  Stream<String> get taps => _taps.stream;
+
+  @override
+  Future<String?> takeLaunchPayload() async {
+    // Asked once and only once: the launch details do not clear themselves, so
+    // a second read would reopen the same book on every hot restart.
+    if (_launchPayloadTaken) return null;
+    _launchPayloadTaken = true;
+
+    final details = await plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return null;
+    return details?.notificationResponse?.payload;
+  }
 
   /// Initialises the plugin and pins the timezone database to the device zone.
   ///
@@ -39,8 +63,13 @@ class LocalReminderChannel implements ReminderChannel {
       debugPrint('Falling back to UTC for reminders: $error');
     }
 
+    final taps = StreamController<String>.broadcast();
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin.initialize(
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) taps.add(payload);
+      },
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         // Permission is asked for later, when the reader has actually made a
@@ -52,12 +81,12 @@ class LocalReminderChannel implements ReminderChannel {
         ),
       ),
     );
-    return LocalReminderChannel._(plugin);
+    return LocalReminderChannel._(plugin, taps);
   }
 
   @override
   Future<bool> requestPermission() async {
-    final android = _plugin
+    final android = plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
@@ -69,7 +98,7 @@ class LocalReminderChannel implements ReminderChannel {
       return await android.requestNotificationsPermission() ?? false;
     }
 
-    final ios = _plugin
+    final ios = plugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
         >();
@@ -85,10 +114,10 @@ class LocalReminderChannel implements ReminderChannel {
     List<Reminder> reminders,
     ReminderText Function(Reminder) text,
   ) async {
-    await _plugin.cancelAll();
+    await plugin.cancelAll();
     for (final reminder in reminders) {
       final words = text(reminder);
-      await _plugin.zonedSchedule(
+      await plugin.zonedSchedule(
         id: reminder.id,
         title: words.title,
         body: words.body,

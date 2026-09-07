@@ -165,8 +165,56 @@
   "@todayRemaining": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "todayThisSession": "This session",
+  "todayLater": "Later today",
+  "todayAll": "All of today",
+  "todayPagesLeftLabel": "{count, plural, =1{page left} other{pages left}}",
+  "@todayPagesLeftLabel": {
+    "description": "Sits under the large figure, which carries the number itself.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayPageRange": "pp. {range}",
+  "@todayPageRange": {
+    "placeholders": { "range": { "type": "String" } }
+  },
+  "todaySessionProgress": "{done} of {total} this session",
+  "@todaySessionProgress": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "todayPagesDone": "{done} of {total} pages done",
+  "@todayPagesDone": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "todaySessionCount": "{count, plural, =1{1 session} other{{count} sessions}}",
+  "@todaySessionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayAcross": "{sessions} across {books}",
+  "@todayAcross": {
+    "description": "Joins a session count and a book count, e.g. \"3 sessions across 2 books\".",
+    "placeholders": {
+      "sessions": { "type": "String" },
+      "books": { "type": "String" }
+    }
+  },
+  "todayRowDetail": "pp. {range} · {pages}",
+  "@todayRowDetail": {
+    "placeholders": {
+      "range": { "type": "String" },
+      "pages": { "type": "String" }
+    }
+  },
+  "todayAllDone": "Today's portion is done.",
+  "todayAllDoneHint": "Nothing else is due until tomorrow. Read ahead if you like — it moves your finish date closer.",
 
   "readerFinishSession": "I finished my portion",
+  "readerKeepReading": "Keep reading",
   "readerPageOf": "Page {current} of {total}",
   "@readerPageOf": {
     "placeholders": {

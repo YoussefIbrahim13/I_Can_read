@@ -438,6 +438,130 @@ void main() {
     });
   });
 
+  group('pausing a plan', () {
+    Future<ReadingPlan> storedPlan() =>
+        (db.select(db.readingPlans)
+              ..where((p) => p.id.equals('plan-1')))
+            .getSingle();
+
+    Future<void> addSession() {
+      return db.replaceSessions('plan-1', [
+        ReadingSessionsCompanion.insert(
+          id: 'session-1',
+          planId: 'plan-1',
+          ordinal: 0,
+          timeOfDayMinutes: 20 * 60,
+          pagesShare: 10,
+          updatedAt: _jan1,
+        ),
+      ]);
+    }
+
+    setUp(() async {
+      await insertBook();
+      await insertPlan();
+    });
+
+    test('a paused plan owes nothing today and reminds about nothing', () async {
+      await addSession();
+      expect(await db.watchLivePlanSessions().first, hasLength(1));
+
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+
+      expect(await db.watchLivePlanSessions().first, isEmpty);
+      expect(await db.watchDueReminders().first, isEmpty);
+    });
+
+    test('resuming banks the days spent paused', () async {
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+      await db.resumePlan('plan-1', DateTime(2026, 1, 9));
+
+      final plan = await storedPlan();
+      expect(plan.pausedAt, isNull);
+      expect(plan.pausedDays, 4);
+    });
+
+    test('pauses accumulate across several breaks', () async {
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+      await db.resumePlan('plan-1', DateTime(2026, 1, 9));
+      await db.pausePlan('plan-1', DateTime(2026, 1, 20));
+      await db.resumePlan('plan-1', DateTime(2026, 1, 23));
+
+      expect((await storedPlan()).pausedDays, 7);
+    });
+
+    test('pausing twice keeps the first pause date', () async {
+      // The caller is a button; a double tap must not restart the clock.
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+      await db.pausePlan('plan-1', DateTime(2026, 1, 8));
+
+      expect((await storedPlan()).pausedAt, DateTime(2026, 1, 5));
+    });
+
+    test('resuming a plan that was never paused changes nothing', () async {
+      await db.resumePlan('plan-1', DateTime(2026, 1, 9));
+
+      final plan = await storedPlan();
+      expect(plan.pausedAt, isNull);
+      expect(plan.pausedDays, 0);
+    });
+
+    test('a pause and a resume on the same day cost no days', () async {
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5, 9));
+      await db.resumePlan('plan-1', DateTime(2026, 1, 5, 21));
+
+      expect((await storedPlan()).pausedDays, 0);
+    });
+
+    test('the paused days feed straight into the schedule status', () async {
+      await db.pausePlan('plan-1', DateTime(2026, 1, 2));
+      await db.resumePlan('plan-1', DateTime(2026, 1, 6));
+
+      final plan = await storedPlan();
+      final status = scheduleStatus(
+        db.specOf(plan),
+        lastPageRead: 20,
+        today: DateTime(2026, 1, 7),
+        pausedDays: plan.pausedDays,
+      );
+
+      expect(status.isOnTrack, isTrue);
+    });
+  });
+
+  group('the reading day', () {
+    test('reading after midnight is credited to the day before', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: DateTime(2026, 1, 8, 1, 30),
+        logId: 'log-1',
+      );
+
+      expect(await db.pagesReadOn('plan-1', DateTime(2026, 1, 7)), 10);
+      expect(await db.pagesReadOn('plan-1', DateTime(2026, 1, 8)), 0);
+    });
+
+    test('reading after the boundary is credited to the new day', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: DateTime(2026, 1, 8, 4, 30),
+        logId: 'log-1',
+      );
+
+      expect(await db.pagesReadOn('plan-1', DateTime(2026, 1, 8)), 10);
+    });
+  });
+
   test('specOf round-trips a stored plan into plan arithmetic', () async {
     await insertBook();
     await insertPlan();

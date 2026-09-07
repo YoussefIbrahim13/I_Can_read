@@ -27,10 +27,18 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'i_can_read'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // Pausing a plan, added once it was clear that a deliberate break and
+        // a missed day are not the same thing.
+        await m.addColumn(readingPlans, readingPlans.pausedAt);
+        await m.addColumn(readingPlans, readingPlans.pausedDays);
+      }
+    },
     beforeOpen: (details) async {
       // Off by default in SQLite; without it the cascade rules are decorative.
       await customStatement('PRAGMA foreign_keys = ON');
@@ -147,6 +155,16 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// The book's stored relative path, or null when no file is linked here.
+  Future<String?> localFilePath(String bookId) async {
+    final row =
+        await (select(localBookFiles)..where(
+              (f) => f.bookId.equals(bookId) & f.isAvailable.equals(true),
+            ))
+            .getSingleOrNull();
+    return row?.relativePath;
+  }
+
   /// Whether this device currently holds the book's PDF.
   Future<bool> hasLocalFile(String bookId) async {
     final row =
@@ -237,6 +255,45 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Stops the plan reminding and stops the clock counting against it.
+  ///
+  /// Pausing twice is a no-op rather than an error: the caller is a button,
+  /// and a double tap should not lose the original pause date.
+  Future<void> pausePlan(String planId, DateTime now) async {
+    await (update(readingPlans)
+          ..where((p) => p.id.equals(planId) & p.pausedAt.isNull()))
+        .write(
+          ReadingPlansCompanion(
+            pausedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+  }
+
+  /// Restarts the plan, banking the days it spent paused.
+  ///
+  /// The days are added to a running total rather than kept as a history: only
+  /// the total is ever used, by [scheduleStatus], and a pause log nobody reads
+  /// is a table to migrate for nothing.
+  Future<void> resumePlan(String planId, DateTime now) {
+    return transaction(() async {
+      final plan = await (select(
+        readingPlans,
+      )..where((p) => p.id.equals(planId))).getSingleOrNull();
+      final pausedAt = plan?.pausedAt;
+      if (plan == null || pausedAt == null) return;
+
+      final elapsed = daysBetween(pausedAt, now);
+      await (update(readingPlans)..where((p) => p.id.equals(planId))).write(
+        ReadingPlansCompanion(
+          pausedAt: const Value(null),
+          pausedDays: Value(plan.pausedDays + (elapsed < 0 ? 0 : elapsed)),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
   Stream<List<ReadingSession>> watchSessionsFor(String planId) {
     return (select(readingSessions)
           ..where((s) => s.planId.equals(planId))
@@ -261,13 +318,13 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Every session that should currently have a reminder scheduled.
+  /// Every session of every book still being read, in time order.
   ///
   /// Finished and archived books fall out on their own: [recordReading] flips
-  /// the book's status, so completing a book stops its reminders without
-  /// anything having to remember to cancel them.
+  /// the book's status, so completing a book drops off both the day's list and
+  /// the reminder schedule without anything having to clean up after it.
   Stream<List<({Book book, ReadingPlan plan, ReadingSession session})>>
-  watchDueReminders() {
+  watchLivePlanSessions({bool remindersOnly = false}) {
     final query =
         select(readingSessions).join([
           innerJoin(
@@ -275,12 +332,19 @@ class AppDatabase extends _$AppDatabase {
             readingPlans.id.equalsExp(readingSessions.planId),
           ),
           innerJoin(books, books.id.equalsExp(readingPlans.bookId)),
-        ])..where(
-          readingSessions.isEnabled.equals(true) &
-              readingPlans.isActive.equals(true) &
-              books.status.equalsValue(BookStatus.reading) &
-              books.deletedAt.isNull(),
-        );
+        ])..orderBy([OrderingTerm.asc(readingSessions.ordinal)]);
+
+    // A paused plan owes nothing today and reminds about nothing. It stays in
+    // the library, where the reader can see it and resume it.
+    var filter =
+        readingPlans.isActive.equals(true) &
+        readingPlans.pausedAt.isNull() &
+        books.status.equalsValue(BookStatus.reading) &
+        books.deletedAt.isNull();
+    // A session with its reminder switched off still owes its pages; only the
+    // notification layer cares about the flag.
+    if (remindersOnly) filter = filter & readingSessions.isEnabled.equals(true);
+    query.where(filter);
 
     return query
         .map(
@@ -291,6 +355,30 @@ class AppDatabase extends _$AppDatabase {
           ),
         )
         .watch();
+  }
+
+  /// Every session that should currently have a reminder scheduled.
+  Stream<List<({Book book, ReadingPlan plan, ReadingSession session})>>
+  watchDueReminders() => watchLivePlanSessions(remindersOnly: true);
+
+  /// Pages credited to [day], per plan.
+  ///
+  /// One query for the whole screen: the day's layout needs to know where each
+  /// book stood when the day began, which is today's total subtracted from
+  /// current progress.
+  Stream<Map<String, int>> watchPagesReadOn(DateTime day) {
+    final total = readingLog.pagesRead.sum();
+    final query = selectOnly(readingLog)
+      ..addColumns([readingLog.planId, total])
+      ..where(readingLog.readDate.equals(dateOnly(day)))
+      ..groupBy([readingLog.planId]);
+
+    return query.watch().map(
+      (rows) => {
+        for (final row in rows)
+          row.read(readingLog.planId)!: row.read(total) ?? 0,
+      },
+    );
   }
 
   /// Reconstructs the pure [PlanSpec] used by all scheduling arithmetic.
@@ -331,7 +419,9 @@ class AppDatabase extends _$AppDatabase {
           id: logId,
           planId: planId,
           sessionId: Value(sessionId),
-          readDate: dateOnly(readAt),
+          // Not `dateOnly`: reading at one in the morning belongs to the day
+          // the reader is still awake in. See [readingDay].
+          readDate: readingDay(readAt),
           fromPage: fromPage,
           toPage: toPage,
           pagesRead: toPage - fromPage + 1,

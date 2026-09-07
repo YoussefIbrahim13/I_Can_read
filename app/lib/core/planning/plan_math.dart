@@ -22,6 +22,22 @@ enum PlanMode {
 DateTime dateOnly(DateTime moment) =>
     DateTime(moment.year, moment.month, moment.day);
 
+/// The hour a reading day rolls over.
+///
+/// Not midnight. Someone reading at one in the morning is finishing the day
+/// they are still awake in, and crediting that to tomorrow would both break
+/// their run and hand them a second portion a few hours later.
+const readingDayStartHour = 4;
+
+/// The reading day a moment belongs to.
+///
+/// Built by comparing the hour rather than subtracting four hours from the
+/// clock, so a daylight-saving change cannot move the boundary.
+DateTime readingDay(DateTime moment) {
+  final day = dateOnly(moment);
+  return moment.hour < readingDayStartHour ? addDays(day, -1) : day;
+}
+
 /// Whole calendar days from [from] to [to]. Negative when [to] precedes [from].
 ///
 /// Normalises through UTC so DST transitions cannot skew the count.
@@ -334,12 +350,17 @@ class ScheduleStatus {
 /// Only *completed* days count toward the expectation: on the first day, before
 /// any reading, the reader is on track rather than a day behind. Days before the
 /// plan starts count as zero, and the expectation never exceeds the book.
+///
+/// [pausedDays] is subtracted from the elapsed days. Pausing is the one way a
+/// reader can tell the app they are not reading; days inside a pause must not
+/// come back later as a debt, or the pause meant nothing.
 ScheduleStatus scheduleStatus(
   PlanSpec plan, {
   required int lastPageRead,
   required DateTime today,
+  int pausedDays = 0,
 }) {
-  final completedDays = daysBetween(plan.startDate, today);
+  final completedDays = daysBetween(plan.startDate, today) - pausedDays;
   final expectedRaw = completedDays < 1 ? 0 : completedDays * plan.pagesPerDay;
   final expected = expectedRaw > plan.totalPages
       ? plan.totalPages

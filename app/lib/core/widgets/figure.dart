@@ -72,6 +72,28 @@ class Figure extends StatelessWidget {
   }
 }
 
+/// Passed to a localised sentence in place of the number, then substituted for
+/// a real [Figure] by [figureInSentence].
+///
+/// Deliberately visible ASCII rather than a control character: it shows up in
+/// a failing test's output as `pp. {#}` instead of an invisible byte.
+const figureMarker = '{#}';
+
+/// Drops [figure] into a translated sentence wherever [figureMarker] appears.
+///
+/// The point is to keep the whole sentence in one ARB key. Splitting it into a
+/// prefix and a suffix would put word order in the code, and word order is the
+/// first thing Arabic changes.
+List<InlineSpan> figureInSentence(String sentence, InlineSpan figure) {
+  final parts = sentence.split(figureMarker);
+  return [
+    for (final (index, part) in parts.indexed) ...[
+      if (index > 0) figure,
+      if (part.isNotEmpty) TextSpan(text: part),
+    ],
+  ];
+}
+
 /// [Figure] as an inline span, for figures embedded in a sentence such as
 /// "‎7‎ صفحات فاضلة".
 ///

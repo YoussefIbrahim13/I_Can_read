@@ -89,6 +89,19 @@ class ReadingPlans extends Table {
 
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
+  /// When the reader paused the plan, or null while it is running.
+  ///
+  /// A pause is not the same as missing days. Missing days is something the
+  /// plan already absorbs — the finish date moves. A pause is deliberate, so
+  /// the days inside it must not be counted against the reader at all.
+  DateTimeColumn get pausedAt => dateTime().nullable()();
+
+  /// Days spent inside completed pauses, accumulated on resume.
+  ///
+  /// Stored rather than derived because the pause history is not kept: only
+  /// the total matters, and it is what [scheduleStatus] subtracts.
+  IntColumn get pausedDays => integer().withDefault(const Constant(0))();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 

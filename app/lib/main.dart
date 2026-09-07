@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,11 +35,46 @@ Future<void> main() async {
   );
 }
 
-class ICanReadApp extends ConsumerWidget {
+class ICanReadApp extends ConsumerStatefulWidget {
   const ICanReadApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ICanReadApp> createState() => _ICanReadAppState();
+}
+
+class _ICanReadAppState extends ConsumerState<ICanReadApp> {
+  StreamSubscription<String>? _taps;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final channel = ref.read(reminderChannelProvider);
+    _taps = channel.taps.listen(_openBook);
+    // After the first frame, so the router has a navigator to push onto: a
+    // reminder that launched the app arrives before anything is mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final bookId = await channel.takeLaunchPayload();
+      if (bookId != null && mounted) _openBook(bookId);
+    });
+  }
+
+  @override
+  void dispose() {
+    _taps?.cancel();
+    super.dispose();
+  }
+
+  /// A tapped reminder opens the book, not the app.
+  ///
+  /// Landing on the day's list would make the reader find the book the
+  /// reminder just named, which is work the reminder was supposed to save.
+  void _openBook(String bookId) {
+    unawaited(ref.read(appRouterProvider).push('/books/$bookId/read'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
     final router = ref.watch(appRouterProvider);
     // Watched, not used: this is what keeps the scheduled reminders in step
