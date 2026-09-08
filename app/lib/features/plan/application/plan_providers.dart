@@ -9,11 +9,11 @@ import '../../../core/planning/plan_math.dart';
 /// Auto-disposing because it is keyed by book: without it, every book the
 /// reader opens would leave a live entry — and a live query — behind for the
 /// rest of the session.
-final bookProvider = FutureProvider.autoDispose.family<Book?, String>((
+final bookProvider = StreamProvider.autoDispose.family<Book?, String>((
   ref,
   bookId,
 ) {
-  return ref.watch(appDatabaseProvider).findBook(bookId);
+  return ref.watch(appDatabaseProvider).watchBook(bookId);
 });
 
 /// The book's plan, or null while it has none.

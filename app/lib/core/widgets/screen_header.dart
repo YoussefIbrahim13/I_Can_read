@@ -74,9 +74,12 @@ class ScreenHeader extends StatelessWidget {
 /// A back arrow and a modest title, for the pushed screens (add a book, plan,
 /// sessions) where the subject is the content below rather than the title.
 class ScreenBackBar extends StatelessWidget {
-  const ScreenBackBar({required this.title, this.onBack, super.key});
+  const ScreenBackBar({this.title, this.onBack, super.key});
 
-  final String title;
+  /// Omitted on book detail, where the book's own title sets two lines below
+  /// in display type — naming it twice would make the arrow read as chrome
+  /// belonging to a different screen.
+  final String? title;
   final VoidCallback? onBack;
 
   @override
@@ -104,14 +107,15 @@ class ScreenBackBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.x1),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.titleSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          if (title case final title?)
+            Expanded(
+              child: Text(
+                title,
+                style: theme.textTheme.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -13,20 +13,33 @@ const supportedLocales = <Locale>[Locale('ar'), Locale('en')];
 
 @immutable
 class AppSettings {
-  const AppSettings({required this.locale, required this.themeMode});
+  const AppSettings({
+    required this.locale,
+    required this.themeMode,
+    required this.hasOnboarded,
+  });
 
   /// `null` means "follow the system locale".
   final Locale? locale;
   final ThemeMode themeMode;
 
+  /// False until the reader has been through the welcome screen once.
+  ///
+  /// Deliberately not inferred from "has no books": a reader who finishes and
+  /// deletes everything would be walked through the introduction again, and
+  /// an empty library already has its own empty state saying the same thing.
+  final bool hasOnboarded;
+
   AppSettings copyWith({
     Locale? locale,
     bool clearLocale = false,
     ThemeMode? themeMode,
+    bool? hasOnboarded,
   }) {
     return AppSettings(
       locale: clearLocale ? null : (locale ?? this.locale),
       themeMode: themeMode ?? this.themeMode,
+      hasOnboarded: hasOnboarded ?? this.hasOnboarded,
     );
   }
 }
@@ -34,6 +47,7 @@ class AppSettings {
 class AppSettingsNotifier extends Notifier<AppSettings> {
   static const _localeKey = 'settings.locale';
   static const _themeKey = 'settings.themeMode';
+  static const _onboardedKey = 'settings.hasOnboarded';
 
   @override
   AppSettings build() {
@@ -45,6 +59,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
         (mode) => mode.name == prefs.getString(_themeKey),
         orElse: () => ThemeMode.system,
       ),
+      hasOnboarded: prefs.getBool(_onboardedKey) ?? false,
     );
   }
 
@@ -62,6 +77,15 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   Future<void> setThemeMode(ThemeMode mode) async {
     state = state.copyWith(themeMode: mode);
     await ref.read(sharedPreferencesProvider).setString(_themeKey, mode.name);
+  }
+
+  /// Remembers that the welcome screen has been seen.
+  ///
+  /// Written before navigating away, so a reader who kills the app on the very
+  /// next frame still does not meet the introduction twice.
+  Future<void> completeOnboarding() async {
+    state = state.copyWith(hasOnboarded: true);
+    await ref.read(sharedPreferencesProvider).setBool(_onboardedKey, true);
   }
 }
 

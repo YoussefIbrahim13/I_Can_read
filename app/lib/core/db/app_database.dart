@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../planning/plan_math.dart';
+import '../sync/sync_mappers.dart';
+import '../sync/sync_models.dart';
 import 'tables.dart';
 
 export 'tables.dart';
@@ -27,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'i_can_read'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,6 +41,19 @@ class AppDatabase extends _$AppDatabase {
         // a missed day are not the same thing.
         await m.addColumn(readingPlans, readingPlans.pausedAt);
         await m.addColumn(readingPlans, readingPlans.pausedDays);
+      }
+      if (from < 3) {
+        // `archived` was dropped in favour of pausing the plan. Any book on
+        // the old shelf goes back to being read: it is the reversible choice,
+        // and the reader can pause it if that is what they meant.
+        await customStatement(
+          "UPDATE books SET status = 'reading' WHERE status = 'archived'",
+        );
+      }
+      if (from < 4) {
+        // Sessions became soft-deletable once they started syncing: a hard
+        // delete leaves nothing to tell the other devices it happened.
+        await m.addColumn(readingSessions, readingSessions.deletedAt);
       }
     },
     beforeOpen: (details) async {
@@ -57,8 +74,44 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  /// Books whose plan is paused, and books still being read — the two halves
+  /// of what used to be one "reading" shelf.
+  ///
+  /// Split here rather than in the widget because a paused book must appear on
+  /// exactly one shelf: leaving it on both is how the reader ends up pausing a
+  /// book twice and wondering why nothing changed.
+  Stream<List<Book>> watchBooksByPause({required bool paused}) {
+    final pausedPlan = existsQuery(
+      select(readingPlans)
+        ..where(
+          (p) =>
+              p.bookId.equalsExp(books.id) &
+              p.isActive.equals(true) &
+              p.pausedAt.isNotNull(),
+        ),
+    );
+
+    return (select(books)
+          ..where(
+            (b) =>
+                b.status.equalsValue(BookStatus.reading) &
+                b.deletedAt.isNull() &
+                (paused ? pausedPlan : pausedPlan.not()),
+          )
+          ..orderBy([(b) => OrderingTerm.desc(b.createdAt)]))
+        .watch();
+  }
+
   Future<Book?> findBook(String id) =>
       (select(books)..where((b) => b.id.equals(id))).getSingleOrNull();
+
+  /// One book, kept live.
+  ///
+  /// A stream rather than a one-shot read because the book's status is
+  /// editable from the detail screen: shelving a book has to redraw the screen
+  /// that shelved it, not leave it offering to shelve it again.
+  Stream<Book?> watchBook(String id) =>
+      (select(books)..where((b) => b.id.equals(id))).watchSingleOrNull();
 
   /// Finds the book a previously-seen PDF belongs to.
   ///
@@ -132,6 +185,19 @@ class AppDatabase extends _$AppDatabase {
           relativePath: relativePath,
           linkedAt: now,
         ),
+      );
+
+      // The local file row is not queued: the PDF and where it sits on this
+      // phone are the two things that deliberately never leave it.
+      await _enqueueBook(bookId);
+      final fingerprint = await (select(
+        bookFingerprints,
+      )..where((f) => f.id.equals(fingerprintId))).getSingle();
+      await _enqueue(
+        SyncEntity.fingerprints,
+        fingerprintId,
+        SyncOp.upsert,
+        fingerprintDto(fingerprint).toJson(),
       );
     });
   }
@@ -234,6 +300,7 @@ class AppDatabase extends _$AppDatabase {
             updatedAt: Value(now),
           ),
         );
+        await _enqueuePlan(existing.id);
         return existing.id;
       }
 
@@ -251,6 +318,7 @@ class AppDatabase extends _$AppDatabase {
           updatedAt: now,
         ),
       );
+      await _enqueuePlan(newPlanId);
       return newPlanId;
     });
   }
@@ -259,15 +327,22 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// Pausing twice is a no-op rather than an error: the caller is a button,
   /// and a double tap should not lose the original pause date.
-  Future<void> pausePlan(String planId, DateTime now) async {
-    await (update(readingPlans)
-          ..where((p) => p.id.equals(planId) & p.pausedAt.isNull()))
-        .write(
-          ReadingPlansCompanion(
-            pausedAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
+  Future<void> pausePlan(String planId, DateTime now) {
+    return transaction(() async {
+      final changed =
+          await (update(readingPlans)
+                ..where((p) => p.id.equals(planId) & p.pausedAt.isNull()))
+              .write(
+                ReadingPlansCompanion(
+                  pausedAt: Value(now),
+                  updatedAt: Value(now),
+                ),
+              );
+      // Nothing changed means the plan was already paused. Queueing anyway
+      // would push a row whose `updatedAt` moved for no reason, and hand the
+      // conflict to a device that has something newer to say.
+      if (changed > 0) await _enqueuePlan(planId);
+    });
   }
 
   /// Restarts the plan, banking the days it spent paused.
@@ -291,12 +366,13 @@ class AppDatabase extends _$AppDatabase {
           updatedAt: Value(now),
         ),
       );
+      await _enqueuePlan(planId);
     });
   }
 
   Stream<List<ReadingSession>> watchSessionsFor(String planId) {
     return (select(readingSessions)
-          ..where((s) => s.planId.equals(planId))
+          ..where((s) => s.planId.equals(planId) & s.deletedAt.isNull())
           ..orderBy([(s) => OrderingTerm.asc(s.ordinal)]))
         .watch();
   }
@@ -306,15 +382,67 @@ class AppDatabase extends _$AppDatabase {
   /// Sessions are replaced wholesale rather than diffed: the ordinals seed
   /// notification ids, so a stable full rewrite is easier to reason about than
   /// patching individual rows.
+  ///
+  /// The outgoing rows are tombstoned rather than dropped. A row that simply
+  /// vanishes cannot be described to the server, and the copy left behind
+  /// there would come back on the next pull as a second reminder.
   Future<void> replaceSessions(
     String planId,
-    List<ReadingSessionsCompanion> sessions,
-  ) {
+    List<ReadingSessionsCompanion> sessions, {
+    DateTime? now,
+  }) {
+    final at = now ?? DateTime.now();
+    final keep = {for (final s in sessions) s.id.value};
+
     return transaction(() async {
-      await (delete(
-        readingSessions,
-      )..where((s) => s.planId.equals(planId))).go();
-      await batch((b) => b.insertAll(readingSessions, sessions));
+      // Only the ids that are genuinely gone are tombstoned. A caller is free
+      // to reuse an id — the ordinal-based scheme rather invites it — and an
+      // id that comes back was never removed in the first place.
+      final retired =
+          await (select(readingSessions)..where(
+                (s) =>
+                    s.planId.equals(planId) &
+                    s.deletedAt.isNull() &
+                    s.id.isNotIn(keep),
+              ))
+              .get();
+
+      for (final row in retired) {
+        final tombstone = row.copyWith(deletedAt: Value(at), updatedAt: at);
+        await (update(
+          readingSessions,
+        )..where((s) => s.id.equals(row.id))).write(
+          ReadingSessionsCompanion(
+            deletedAt: Value(at),
+            updatedAt: Value(at),
+          ),
+        );
+        await _enqueue(
+          SyncEntity.sessions,
+          row.id,
+          SyncOp.delete,
+          sessionDto(tombstone).toJson(),
+        );
+      }
+
+      for (final companion in sessions) {
+        // Explicitly un-tombstoned: an id that was retired and is now being
+        // written again is a session the reader brought back, and an absent
+        // `deletedAt` on the companion would leave the old one in place.
+        await into(readingSessions).insertOnConflictUpdate(
+          companion.copyWith(deletedAt: const Value(null)),
+        );
+        final row =
+            await (select(readingSessions)
+                  ..where((s) => s.id.equals(companion.id.value)))
+                .getSingle();
+        await _enqueue(
+          SyncEntity.sessions,
+          row.id,
+          SyncOp.upsert,
+          sessionDto(row).toJson(),
+        );
+      }
     });
   }
 
@@ -337,6 +465,7 @@ class AppDatabase extends _$AppDatabase {
     // A paused plan owes nothing today and reminds about nothing. It stays in
     // the library, where the reader can see it and resume it.
     var filter =
+        readingSessions.deletedAt.isNull() &
         readingPlans.isActive.equals(true) &
         readingPlans.pausedAt.isNull() &
         books.status.equalsValue(BookStatus.reading) &
@@ -379,6 +508,100 @@ class AppDatabase extends _$AppDatabase {
           row.read(readingLog.planId)!: row.read(total) ?? 0,
       },
     );
+  }
+
+  /// Pages read per calendar day from [from] onward, for one plan or for all.
+  ///
+  /// Keyed by the day rather than returned as rows, because both callers are
+  /// charts: they walk a fixed range of dates and ask each one what it holds,
+  /// and days with no reading have to come back as absent rather than missing.
+  ///
+  /// [planId] null totals every book, which is what the stats screen means by
+  /// "pages a day" — the reader read them all, whichever book they came from.
+  Stream<Map<DateTime, int>> watchDailyPagesFor(
+    String? planId, {
+    required DateTime from,
+  }) {
+    final total = readingLog.pagesRead.sum();
+    final query = selectOnly(readingLog)
+      ..addColumns([readingLog.readDate, total])
+      ..where(
+        (planId == null
+                ? const Constant(true)
+                : readingLog.planId.equals(planId)) &
+            readingLog.readDate.isBiggerOrEqualValue(dateOnly(from)),
+      )
+      ..groupBy([readingLog.readDate]);
+
+    return query.watch().map(
+      (rows) => {
+        for (final row in rows)
+          row.read(readingLog.readDate)!: row.read(total) ?? 0,
+      },
+    );
+  }
+
+  /// Every finished book together with the plan it was finished under.
+  ///
+  /// An inner join, so a book finished before it ever had a plan does not
+  /// appear: the stats screen reports how long each ختمة took, and a book with
+  /// no plan has no start date to measure from.
+  Stream<List<({Book book, ReadingPlan plan})>> watchFinishedBooks() {
+    final query =
+        select(books).join([
+          innerJoin(readingPlans, readingPlans.bookId.equalsExp(books.id)),
+        ])..where(
+          books.status.equalsValue(BookStatus.finished) &
+              books.deletedAt.isNull() &
+              readingPlans.isActive.equals(true),
+        );
+
+    return query
+        .map(
+          (row) => (
+            book: row.readTable(books),
+            plan: row.readTable(readingPlans),
+          ),
+        )
+        .watch();
+  }
+
+  /// The last day each plan was read on, for measuring how long a book took.
+  Stream<Map<String, DateTime>> watchLastReadDates() {
+    final last = readingLog.readDate.max();
+    final query = selectOnly(readingLog)
+      ..addColumns([readingLog.planId, last])
+      ..groupBy([readingLog.planId]);
+
+    return query.watch().map(
+      (rows) => Map.fromEntries(
+        rows
+            .map((row) => (id: row.read(readingLog.planId)!, date: row.read(last)))
+            // A group with no maximum cannot happen in SQL, but the column is
+            // typed nullable and a silent `!` here would be a crash later.
+            .where((row) => row.date != null)
+            .map((row) => MapEntry(row.id, row.date!)),
+      ),
+    );
+  }
+
+  /// Moves a book between shelves.
+  ///
+  /// The plan is left alone. Archiving a half-read book and putting it back
+  /// months later should find the goal exactly where it was — and a plan on a
+  /// non-reading book already owes nothing, because every query that drives
+  /// today's list and the reminders filters on the book's status.
+  Future<void> setBookStatus(
+    String bookId,
+    BookStatus status,
+    DateTime now,
+  ) {
+    return transaction(() async {
+      await (update(books)..where((b) => b.id.equals(bookId))).write(
+        BooksCompanion(status: Value(status), updatedAt: Value(now)),
+      );
+      await _enqueueBook(bookId);
+    });
   }
 
   /// Reconstructs the pure [PlanSpec] used by all scheduling arithmetic.
@@ -447,6 +670,19 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
       }
+
+      final entry = await (select(
+        readingLog,
+      )..where((l) => l.id.equals(logId))).getSingle();
+      await _enqueue(
+        SyncEntity.logEntries,
+        logId,
+        SyncOp.upsert,
+        logEntryDto(entry).toJson(),
+      );
+      await _enqueuePlan(planId);
+      if (finished) await _enqueueBook(plan.bookId);
+
       return finished;
     });
   }
@@ -462,6 +698,370 @@ class AppDatabase extends _$AppDatabase {
       );
     final row = await query.getSingle();
     return row.read(total) ?? 0;
+  }
+
+  // -------------------------------------------------------------------------
+  // Sync outbox
+  // -------------------------------------------------------------------------
+
+  /// Inserts one outbox row. Called inside the same transaction as the
+  /// original mutation so the two are atomic.
+  Future<void> _enqueue(
+    String entity,
+    String entityId,
+    SyncOp op,
+    Map<String, dynamic> json,
+  ) {
+    return into(syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        entity: entity,
+        entityId: entityId,
+        op: op,
+        payloadJson: jsonEncode(json),
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  /// Queues a book as it now stands.
+  ///
+  /// The row is re-read rather than assembled from the caller's arguments, so
+  /// what gets queued is what was actually stored — a snapshot that disagrees
+  /// with the database is a divergence waiting for the next device.
+  Future<void> _enqueueBook(String bookId) async {
+    final row = await (select(
+      books,
+    )..where((b) => b.id.equals(bookId))).getSingle();
+    await _enqueue(
+      SyncEntity.books,
+      bookId,
+      row.deletedAt == null ? SyncOp.upsert : SyncOp.delete,
+      bookDto(row).toJson(),
+    );
+  }
+
+  Future<void> _enqueuePlan(String planId) async {
+    final row = await (select(
+      readingPlans,
+    )..where((p) => p.id.equals(planId))).getSingle();
+    await _enqueue(
+      SyncEntity.plans,
+      planId,
+      SyncOp.upsert,
+      planDto(row).toJson(),
+    );
+  }
+
+  /// Every unsent outbox row, oldest first.
+  Future<List<SyncOutboxData>> pendingOutboxEntries() {
+    return (select(syncOutbox)
+          ..orderBy([(e) => OrderingTerm.asc(e.createdAt)]))
+        .get();
+  }
+
+  /// How many changes are still waiting to be sent, kept live.
+  ///
+  /// Shown on the settings screen, where "everything is saved" has to be
+  /// something the reader can check rather than something we assert.
+  Stream<int> watchPendingSyncCount() {
+    final count = syncOutbox.id.count();
+    return (selectOnly(syncOutbox)..addColumns([count]))
+        .map((row) => row.read(count) ?? 0)
+        .watchSingle();
+  }
+
+  /// Removes outbox rows that were successfully pushed.
+  Future<void> deleteOutboxEntries(List<int> ids) {
+    return (delete(syncOutbox)..where((e) => e.id.isIn(ids))).go();
+  }
+
+  /// Bumps the attempt counter for rows that failed.
+  Future<void> incrementOutboxAttempts(List<int> ids) async {
+    for (final id in ids) {
+      await (update(syncOutbox)..where((e) => e.id.equals(id))).write(
+        SyncOutboxCompanion.custom(
+          attempts: syncOutbox.attempts + const Constant(1),
+        ),
+      );
+    }
+  }
+
+  /// Queues every synced row this device holds.
+  ///
+  /// Called once, when a reader who has been using the app without an account
+  /// signs in for the first time. Everything they built as a guest was written
+  /// before there was anywhere to send it, so the outbox is empty and the
+  /// library would otherwise look, from the server's side, like a brand new
+  /// and empty account.
+  Future<void> seedOutboxFromLocalData() {
+    return transaction(() async {
+      for (final row in await select(books).get()) {
+        await _enqueue(
+          SyncEntity.books,
+          row.id,
+          row.deletedAt == null ? SyncOp.upsert : SyncOp.delete,
+          bookDto(row).toJson(),
+        );
+      }
+      for (final row in await select(bookFingerprints).get()) {
+        await _enqueue(
+          SyncEntity.fingerprints,
+          row.id,
+          SyncOp.upsert,
+          fingerprintDto(row).toJson(),
+        );
+      }
+      for (final row in await select(readingPlans).get()) {
+        await _enqueue(
+          SyncEntity.plans,
+          row.id,
+          SyncOp.upsert,
+          planDto(row).toJson(),
+        );
+      }
+      for (final row in await select(readingSessions).get()) {
+        await _enqueue(
+          SyncEntity.sessions,
+          row.id,
+          row.deletedAt == null ? SyncOp.upsert : SyncOp.delete,
+          sessionDto(row).toJson(),
+        );
+      }
+      for (final row in await select(readingLog).get()) {
+        await _enqueue(
+          SyncEntity.logEntries,
+          row.id,
+          SyncOp.upsert,
+          logEntryDto(row).toJson(),
+        );
+      }
+    });
+  }
+
+  /// Empties the outbox without sending anything.
+  ///
+  /// Used on sign-out: the queue belongs to the account that filled it, and
+  /// carrying it into the next sign-in would push one reader's library into
+  /// another reader's account.
+  Future<void> clearOutbox() => delete(syncOutbox).go();
+
+  /// Discards outbox rows that failed too many times.
+  Future<void> deleteStaleOutboxEntries({int maxAttempts = 5}) {
+    return (delete(syncOutbox)
+          ..where((e) => e.attempts.isBiggerOrEqualValue(maxAttempts)))
+        .go();
+  }
+
+  // -------------------------------------------------------------------------
+  // Merge (pull phase) — same three rules as the server
+  // -------------------------------------------------------------------------
+
+  /// Merges remote books using last-write-wins on [BookDto.updatedAt].
+  Future<void> mergeBooks(List<BookDto> remote) {
+    return transaction(() async {
+      for (final dto in remote) {
+        final local = await (select(books)
+              ..where((b) => b.id.equals(dto.id)))
+            .getSingleOrNull();
+
+        if (local == null) {
+          await into(books).insert(
+            BooksCompanion.insert(
+              id: dto.id,
+              title: dto.title,
+              author: Value(dto.author),
+              pageCount: dto.pageCount,
+              pageLabelOffset: Value(dto.pageLabelOffset),
+              status: Value(BookStatus.values.firstWhere(
+                (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
+                orElse: () => BookStatus.reading,
+              )),
+              createdAt: dto.createdAt,
+              updatedAt: dto.updatedAt,
+              deletedAt: Value(dto.deletedAt),
+            ),
+          );
+        } else if (!dto.updatedAt.isBefore(local.updatedAt)) {
+          await (update(books)..where((b) => b.id.equals(dto.id))).write(
+            BooksCompanion(
+              title: Value(dto.title),
+              author: Value(dto.author),
+              pageCount: Value(dto.pageCount),
+              pageLabelOffset: Value(dto.pageLabelOffset),
+              status: Value(BookStatus.values.firstWhere(
+                (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
+                orElse: () => BookStatus.reading,
+              )),
+              updatedAt: Value(dto.updatedAt),
+              deletedAt: Value(dto.deletedAt),
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  /// Merges remote fingerprints. Insert-if-absent by id.
+  Future<void> mergeFingerprints(List<FingerprintDto> remote) {
+    return transaction(() async {
+      for (final dto in remote) {
+        final exists = await (select(bookFingerprints)
+              ..where((f) => f.id.equals(dto.id)))
+            .getSingleOrNull();
+        if (exists != null) continue;
+
+        await into(bookFingerprints).insert(
+          BookFingerprintsCompanion.insert(
+            id: dto.id,
+            bookId: dto.bookId,
+            sha256: dto.sha256.toLowerCase(),
+            pageCount: dto.pageCount,
+            sizeBytes: dto.sizeBytes,
+            originalFileName: Value(dto.originalFileName),
+            createdAt: dto.createdAt,
+          ),
+        );
+      }
+    });
+  }
+
+  /// Merges remote plans: last-write-wins on [PlanDto.updatedAt], but
+  /// [PlanDto.lastPageRead] always takes the MAX.
+  Future<void> mergePlans(List<PlanDto> remote) {
+    return transaction(() async {
+      for (final dto in remote) {
+        final local = await (select(readingPlans)
+              ..where((p) => p.id.equals(dto.id)))
+            .getSingleOrNull();
+
+        final mode = PlanMode.values.firstWhere(
+          (m) => m.name.toLowerCase() == dto.mode.toLowerCase(),
+          orElse: () => PlanMode.byPagesPerDay,
+        );
+        final startDate = DateTime.parse(dto.startDate);
+        final targetEndDate = DateTime.parse(dto.targetEndDate);
+
+        if (local == null) {
+          await into(readingPlans).insert(
+            ReadingPlansCompanion.insert(
+              id: dto.id,
+              bookId: dto.bookId,
+              mode: mode,
+              startPage: dto.startPage,
+              endPage: dto.endPage,
+              startDate: startDate,
+              targetEndDate: targetEndDate,
+              pagesPerDay: dto.pagesPerDay,
+              lastPageRead: Value(dto.lastPageRead),
+              isActive: Value(dto.isActive),
+              pausedAt: Value(dto.pausedAt),
+              pausedDays: Value(dto.pausedDays),
+              createdAt: dto.createdAt,
+              updatedAt: dto.updatedAt,
+            ),
+          );
+        } else {
+          // Progress always takes the maximum, regardless of who wins LWW.
+          final furthest =
+              dto.lastPageRead > local.lastPageRead
+                  ? dto.lastPageRead
+                  : local.lastPageRead;
+
+          if (dto.updatedAt.isBefore(local.updatedAt)) {
+            // The remote row is older — only its progress can contribute.
+            if (furthest != local.lastPageRead) {
+              await (update(readingPlans)
+                    ..where((p) => p.id.equals(dto.id)))
+                  .write(ReadingPlansCompanion(
+                    lastPageRead: Value(furthest),
+                  ));
+            }
+          } else {
+            await (update(readingPlans)
+                  ..where((p) => p.id.equals(dto.id)))
+                .write(ReadingPlansCompanion(
+                  mode: Value(mode),
+                  startPage: Value(dto.startPage),
+                  endPage: Value(dto.endPage),
+                  startDate: Value(startDate),
+                  targetEndDate: Value(targetEndDate),
+                  pagesPerDay: Value(dto.pagesPerDay),
+                  lastPageRead: Value(furthest),
+                  isActive: Value(dto.isActive),
+                  pausedAt: Value(dto.pausedAt),
+                  pausedDays: Value(dto.pausedDays),
+                  updatedAt: Value(dto.updatedAt),
+                ));
+          }
+        }
+      }
+    });
+  }
+
+  /// Merges remote sessions using last-write-wins on [SessionDto.updatedAt].
+  Future<void> mergeSessions(List<SessionDto> remote) {
+    return transaction(() async {
+      for (final dto in remote) {
+        final local = await (select(readingSessions)
+              ..where((s) => s.id.equals(dto.id)))
+            .getSingleOrNull();
+
+        if (local == null) {
+          await into(readingSessions).insert(
+            ReadingSessionsCompanion.insert(
+              id: dto.id,
+              planId: dto.planId,
+              ordinal: dto.ordinal,
+              timeOfDayMinutes: dto.timeOfDayMinutes,
+              pagesShare: dto.pagesShare,
+              daysOfWeek: Value(dto.daysOfWeek),
+              isEnabled: Value(dto.isEnabled),
+              updatedAt: dto.updatedAt,
+              deletedAt: Value(dto.deletedAt),
+            ),
+          );
+        } else if (!dto.updatedAt.isBefore(local.updatedAt)) {
+          await (update(readingSessions)
+                ..where((s) => s.id.equals(dto.id)))
+              .write(ReadingSessionsCompanion(
+                ordinal: Value(dto.ordinal),
+                timeOfDayMinutes: Value(dto.timeOfDayMinutes),
+                pagesShare: Value(dto.pagesShare),
+                daysOfWeek: Value(dto.daysOfWeek),
+                isEnabled: Value(dto.isEnabled),
+                updatedAt: Value(dto.updatedAt),
+                deletedAt: Value(dto.deletedAt),
+              ));
+        }
+      }
+    });
+  }
+
+  /// Merges remote log entries. Append-only: existing entries are never
+  /// modified, and a duplicate id is silently ignored.
+  Future<void> mergeLogEntries(List<LogEntryDto> remote) {
+    return transaction(() async {
+      for (final dto in remote) {
+        final exists = await (select(readingLog)
+              ..where((l) => l.id.equals(dto.id)))
+            .getSingleOrNull();
+        if (exists != null) continue;
+
+        await into(readingLog).insert(
+          ReadingLogCompanion.insert(
+            id: dto.id,
+            planId: dto.planId,
+            sessionId: Value(dto.sessionId),
+            readDate: DateTime.parse(dto.readDate),
+            fromPage: dto.fromPage,
+            toPage: dto.toPage,
+            pagesRead: dto.pagesRead,
+            durationSeconds: Value(dto.durationSeconds),
+            createdAt: dto.createdAt,
+          ),
+        );
+      }
+    });
   }
 }
 

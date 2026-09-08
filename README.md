@@ -1,4 +1,4 @@
-# I Can Read — أقدر أقرأ
+# يقرأ — Yaqra
 
 Structured reading plans for PDF books, modelled on the idea of a ختمة: pick a
 goal ("finish in 30 days" or "15 pages a day"), and the app works out the daily
@@ -38,6 +38,28 @@ dart run tool/make_sample_pdf.dart 240 sample-book.pdf
 adb push sample-book.pdf /sdcard/Download/
 ```
 
+## The name and the mark
+
+The app is **يقرأ** in Arabic and **Yaqra** in Latin. Three names carry it and
+they are not the same thing:
+
+| What | Value | Cost of changing it |
+|---|---|---|
+| Display name | `app_name` in `res/values*/strings.xml`, `CFBundleDisplayName`, `appTitle` in the ARB files | free |
+| Dart package | `i_can_read` | every import in the project |
+| `applicationId` | `com.icanread.i_can_read` | **impossible after the first Play release** |
+
+The mark is a page with one band of it in gold — the day's portion inside the
+book. It is drawn by `AppMarkPainter`, not stored as art, so the launcher icon
+and any in-app use are the same drawing:
+
+```sh
+flutter test tool/make_icon.dart    # paints assets/branding/*.png
+dart run flutter_launcher_icons     # cuts them into platform icons
+```
+
+Both steps, in that order, after any change to the mark.
+
 ## Layout
 
 ```
@@ -58,6 +80,28 @@ flutter pub get
 flutter test                                   # unit + widget tests
 flutter run -d <device>
 ```
+
+### Pointing the app at a server
+
+The API address is build configuration, not a constant in the source and not
+something the reader can type. A "server address" field in settings is a field
+somebody can be talked into filling in, and what would go to it is an email and
+a password.
+
+```sh
+flutter run --dart-define=API_BASE_URL=http://192.168.1.20:5000
+flutter build apk --dart-define=API_BASE_URL=https://api.example.com
+```
+
+Omitted, a debug build falls back to `http://10.0.2.2:5203` — the Android
+emulator's alias for the machine running `dotnet run` — so local work needs no
+flag. Omitted in a **release** build the app refuses to start, on the same
+reasoning as the server's signing key: a misconfigured build should fail while
+somebody is still watching it.
+
+`ApiConfig` rejects a plaintext address for anything but the loopback hosts, and
+the Android network-security config and iOS ATS enforce the same rule below
+Dart. So a remote server has to be https, in all three places.
 
 After changing anything under `lib/core/db/`, regenerate the Drift code:
 
@@ -80,6 +124,16 @@ the host test VM does not provide. Start an emulator, then:
 flutter test integration_test/pdf_engine_test.dart -d <device>
 flutter test integration_test/reminder_channel_test.dart -d <device>
 flutter test integration_test/portion_reader_test.dart -d <device>
+```
+
+`account_flow_test.dart` also needs the API running, and is the only proof a
+request leaves the phone at all — it depends on the `INTERNET` permission, the
+network-security config allowing cleartext to the emulator's host alias, and
+ASP.NET Core accepting our wire format. None of that exists on the host VM.
+
+```sh
+cd server && dotnet run --project src/ICanRead.Api --launch-profile http
+cd app    && flutter test integration_test/account_flow_test.dart -d <device>
 ```
 
 `reminder_channel_test.dart` is the only proof the system scheduler actually

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>I Can Read</string>
+	<string>Yaqra</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -46,6 +46,16 @@
 				</dict>
 			</array>
 		</dict>
+	</dict>
+	<!-- App Transport Security is left on. The one relaxation is local
+	     networking, which is how the simulator reaches a dev server on
+	     localhost; every other host still has to be https, which is the same
+	     rule ApiConfig enforces in Dart. NSAllowsArbitraryLoads is deliberately
+	     absent — this connection carries passwords and reading history. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>

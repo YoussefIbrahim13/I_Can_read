@@ -3,7 +3,13 @@ import 'package:drift/drift.dart';
 import '../planning/plan_math.dart' show PlanMode;
 
 /// Where a book sits in the reader's library.
-enum BookStatus { reading, finished, archived }
+///
+/// There is deliberately no `archived`. Setting a book aside and pausing its
+/// plan are the same act as far as the reader is concerned — both mean "not
+/// now, don't remind me" — and having two ways to say it left the archive
+/// shelf empty and the pause invisible. Pausing is the one that survived,
+/// because it is the one that already carries a date and excuses the days.
+enum BookStatus { reading, finished }
 
 /// What a queued sync operation does to the server.
 enum SyncOp { upsert, delete }
@@ -130,6 +136,14 @@ class ReadingSessions extends Table {
 
   BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
   DateTimeColumn get updatedAt => dateTime()();
+
+  /// Soft delete, so the removal can be synced.
+  ///
+  /// Editing the reminder times rebuilds the whole list rather than diffing it,
+  /// which means ordinary edits delete rows. Without a tombstone the server
+  /// would keep the old ones and hand them back on the next pull, and the
+  /// reader would collect a duplicate reminder every time they moved a time.
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

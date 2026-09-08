@@ -7,7 +7,13 @@ import 'package:i_can_read/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _pumpApp(WidgetTester tester, {String? savedLanguage}) async {
-  SharedPreferences.setMockInitialValues({'settings.locale': ?savedLanguage});
+  SharedPreferences.setMockInitialValues({
+    'settings.locale': ?savedLanguage,
+    // Past the welcome screen: these tests are about the shell's language, and
+    // a fresh install now opens on onboarding, which has no tab bar.
+    // The welcome screen's own behaviour is covered in onboarding_screen_test.
+    'settings.hasOnboarded': true,
+  });
   final prefs = await SharedPreferences.getInstance();
 
   await tester.pumpWidget(

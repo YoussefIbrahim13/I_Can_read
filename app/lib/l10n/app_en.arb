@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appTitle": "I Can Read",
+  "appTitle": "Yaqra",
 
   "navToday": "Today",
   "navLibrary": "Library",
@@ -73,9 +73,40 @@
   },
   "libraryTabReading": "Reading",
   "libraryTabFinished": "Finished",
-  "libraryTabArchived": "Archived",
+  "libraryTabPaused": "Paused",
+  "libraryEmptyFinished": "No finished books yet.",
+  "libraryEmptyFinishedHint": "A book moves here when you read its last page, or when you say you're done with it.",
+  "libraryEmptyPaused": "Nothing is paused.",
+  "libraryEmptyPausedHint": "Pausing a book's plan parks it here and stops its reminders. The days it spends here are not counted against you.",
   "fileMissing": "File not on this device",
   "fileMissingHint": "Tap to locate the PDF",
+
+  "bookStartedOn": "Started {date}",
+  "@bookStartedOn": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookOfTheBook": "of the book",
+  "bookPlanSection": "The plan",
+  "bookSessionCount": "{count, plural, =0{no set times} =1{1 session} other{{count} sessions}}",
+  "@bookSessionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "bookTargetWas": "You aimed for {date}. The daily portion is unchanged — only the date moved.",
+  "@bookTargetWas": {
+    "description": "The one place in the app that mentions being late. States it as a date, at body weight, in ink — never as a failure.",
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookPausedSince": "Paused since {date}. These days aren't counted against you.",
+  "@bookPausedSince": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookReadingDays": "Reading days",
+  "bookPause": "Pause",
+  "bookResume": "Resume",
+  "bookMarkFinished": "I finished it",
+  "bookReturnToReading": "Reading again",
+  "bookNoPlanTitle": "No plan for this book yet.",
+  "bookNoPlanHint": "Pick a goal — “finish in 30 days” or “15 pages a day” — and we'll work out the daily portion.",
 
   "planCreate": "Create a plan",
   "planEdit": "Edit the plan",
@@ -159,6 +190,17 @@
   "statsEmpty": "Nothing to show yet.",
   "statsEmptyHint": "Once you've read for a few days, your pace and your finished books appear here.",
   "statsWindowLast30Days": "Last 30 days",
+  "statsStreak": "days in a row",
+  "statsAveragePages": "pages a day on average",
+  "statsFinishedCount": "books finished",
+  "statsPagesPerDay": "Pages a day",
+  "statsToday": "Today",
+  "statsFinishedSection": "Books you finished",
+  "statsTookDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@statsTookDays": {
+    "description": "How long a finished book took, shown at the end of its row.",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "todayReadNow": "Read now",
   "todayDone": "Done",
   "todayRemaining": "{count} pages left today",
@@ -250,6 +292,13 @@
   "notificationExactAlarms": "Precise reminder times",
   "notificationExactAlarmsHint": "Off by default. Reminders may arrive a few minutes late so the app uses less battery.",
 
+  "onboardingWelcome": "Welcome",
+  "onboardingTitle": "Finish the books you start.",
+  "onboardingBody": "Choose a PDF and pick a goal — finish in 30 days, or read 15 pages a day. We work out the daily portion, split it across the times you choose, and remind you when it's due.",
+  "onboardingMissedDays": "Miss a day and your daily portion stays exactly the same. Only the finish date moves.",
+  "onboardingPrivacy": "Your PDFs stay on this phone. They are never uploaded.",
+  "onboardingStart": "Start reading",
+
   "settingsLanguage": "Language",
   "settingsLanguageArabic": "العربية",
   "settingsLanguageEnglish": "English",
@@ -257,5 +306,45 @@
   "settingsTheme": "Theme",
   "settingsThemeSystem": "System",
   "settingsThemeLight": "Light",
-  "settingsThemeDark": "Dark"
+  "settingsThemeDark": "Dark",
+
+  "settingsAccount": "Account",
+  "settingsSignedOut": "You're reading without an account.",
+  "settingsSignedOutHint": "An account keeps your books, goals and progress if you change phone.",
+  "settingsSignIn": "Sign in or create an account",
+  "settingsSignOut": "Sign out",
+  "settingsSyncNow": "Sync now",
+  "settingsSyncing": "Syncing…",
+  "settingsSyncDone": "Everything is up to date",
+  "settingsSyncFailed": "Couldn't sync. We'll try again.",
+  "settingsSyncPending": "{count, plural, =1{1 change waiting to sync} other{{count} changes waiting to sync}}",
+  "@settingsSyncPending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountTitle": "Your account",
+  "accountModeSignIn": "Sign in",
+  "accountModeRegister": "Create account",
+  "accountIntro": "Your books, your goals and everything you've read are saved to your account, so a new phone picks up where this one left off.",
+  "accountPrivacy": "Your PDFs are not part of this. They stay on this phone and are never uploaded — on a new phone you point the app at the file again and your plan is waiting.",
+  "accountEmail": "Email",
+  "accountPassword": "Password",
+  "accountPasswordRule": "At least eight characters.",
+  "accountName": "Name (optional)",
+  "accountSubmitSignIn": "Sign in",
+  "accountSubmitRegister": "Create account",
+  "accountErrorEmail": "That doesn't look like an email address",
+  "accountErrorPasswordShort": "Too short — eight characters at least",
+  "accountErrorEmailTaken": "That email already has an account. Sign in instead.",
+  "accountErrorCredentials": "That email and password don't match.",
+  "accountErrorOffline": "Couldn't reach the server. Check your connection and try again.",
+  "accountAdopting": "Adding your books to your account…",
+  "accountGoogle": "Continue with Google",
+  "accountOr": "or",
+  "accountErrorGoogle": "Google sign-in didn't work. Try again, or use an email and password.",
+  "accountErrorGoogleEmailTaken": "That Google address already has a password account here. Sign in with your password instead.",
+  "accountWelcome": "Signed in as {email}",
+  "@accountWelcome": {
+    "placeholders": { "email": { "type": "String" } }
+  }
 }

@@ -22,7 +22,7 @@ class LibraryScreen extends ConsumerWidget {
     // The kicker counts the shelf the screen opens on, which is the one the
     // reader thinks of as "my library".
     final reading = ref
-        .watch(booksByStatusProvider(BookStatus.reading))
+        .watch(booksOnShelfProvider(LibraryShelf.reading))
         .asData
         ?.value;
 
@@ -74,7 +74,7 @@ class LibraryScreen extends ConsumerWidget {
                   tabs: [
                     Tab(height: 34, text: l10n.libraryTabReading),
                     Tab(height: 34, text: l10n.libraryTabFinished),
-                    Tab(height: 34, text: l10n.libraryTabArchived),
+                    Tab(height: 34, text: l10n.libraryTabPaused),
                   ],
                 ),
               ),
@@ -82,9 +82,9 @@ class LibraryScreen extends ConsumerWidget {
               const Expanded(
                 child: TabBarView(
                   children: [
-                    _Shelf(status: BookStatus.reading),
-                    _Shelf(status: BookStatus.finished),
-                    _Shelf(status: BookStatus.archived),
+                    _Shelf(shelf: LibraryShelf.reading),
+                    _Shelf(shelf: LibraryShelf.finished),
+                    _Shelf(shelf: LibraryShelf.paused),
                   ],
                 ),
               ),
@@ -97,14 +97,14 @@ class LibraryScreen extends ConsumerWidget {
 }
 
 class _Shelf extends ConsumerWidget {
-  const _Shelf({required this.status});
+  const _Shelf({required this.shelf});
 
-  final BookStatus status;
+  final LibraryShelf shelf;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final books = ref.watch(booksByStatusProvider(status));
+    final books = ref.watch(booksOnShelfProvider(shelf));
     final missingIds =
         ref.watch(missingFileBookIdsProvider).asData?.value ?? const <String>{};
     final plans =
@@ -116,14 +116,27 @@ class _Shelf extends ConsumerWidget {
       error: (error, _) => Center(child: Text('$error')),
       data: (items) {
         if (items.isEmpty) {
-          return EmptyState(
-            title: l10n.libraryEmpty,
-            message: l10n.libraryEmptyHint,
-            action: OutlinedButton(
-              onPressed: () => context.push('/books/add'),
-              child: Text(l10n.addBook),
+          // Each shelf empties for its own reason, and only one of them is
+          // solved by adding a book: telling a reader with no finished books
+          // to import a PDF answers a question they did not ask.
+          return switch (shelf) {
+            LibraryShelf.reading => EmptyState(
+              title: l10n.libraryEmpty,
+              message: l10n.libraryEmptyHint,
+              action: OutlinedButton(
+                onPressed: () => context.push('/books/add'),
+                child: Text(l10n.addBook),
+              ),
             ),
-          );
+            LibraryShelf.finished => EmptyState(
+              title: l10n.libraryEmptyFinished,
+              message: l10n.libraryEmptyFinishedHint,
+            ),
+            LibraryShelf.paused => EmptyState(
+              title: l10n.libraryEmptyPaused,
+              message: l10n.libraryEmptyPausedHint,
+            ),
+          };
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(
@@ -168,10 +181,15 @@ class _BookRow extends StatelessWidget {
     final colors = theme.appColors;
 
     return InkWell(
-      // The whole row opens the goal — set it the first time, adjust it after.
-      // The reader thinks of "the book" as one thing, so tapping any part of
-      // it should lead somewhere rather than only the small caption below.
-      onTap: () => context.push('/books/${book.id}/plan'),
+      // The whole row is the target: the reader thinks of "the book" as one
+      // thing, so tapping any part of it should lead somewhere rather than
+      // only the small caption below.
+      //
+      // A book with no goal skips the detail screen, which would have nothing
+      // to report and one button on it, and goes straight to setting one.
+      onTap: () => context.push(
+        plan == null ? '/books/${book.id}/plan' : '/books/${book.id}',
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4 - 2),
         child: Row(

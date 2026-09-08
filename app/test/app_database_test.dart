@@ -357,6 +357,48 @@ void main() {
 
       expect(await db.watchBooks(BookStatus.reading).first, isEmpty);
     });
+
+    Future<List<String>> shelf({required bool paused}) async {
+      final books = await db.watchBooksByPause(paused: paused).first;
+      return books.map((b) => b.id).toList();
+    }
+
+    test('pausing a plan moves its book to the other shelf, once', () async {
+      await insertBook();
+      await insertPlan();
+
+      expect(await shelf(paused: false), ['book-1']);
+      expect(await shelf(paused: true), isEmpty);
+
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+
+      // The point of the split: never on both shelves at the same time.
+      expect(await shelf(paused: false), isEmpty);
+      expect(await shelf(paused: true), ['book-1']);
+
+      await db.resumePlan('plan-1', DateTime(2026, 1, 9));
+
+      expect(await shelf(paused: false), ['book-1']);
+      expect(await shelf(paused: true), isEmpty);
+    });
+
+    test('a book with no plan cannot be paused, so it stays on reading', () async {
+      await insertBook();
+
+      expect(await shelf(paused: false), ['book-1']);
+      expect(await shelf(paused: true), isEmpty);
+    });
+
+    test('a finished book is on neither reading shelf', () async {
+      await insertBook();
+      await insertPlan();
+      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+      await db.setBookStatus('book-1', BookStatus.finished, DateTime(2026, 2, 1));
+
+      expect(await shelf(paused: false), isEmpty);
+      expect(await shelf(paused: true), isEmpty);
+      expect(await db.watchBooks(BookStatus.finished).first, hasLength(1));
+    });
   });
 
   group('savePlan', () {

@@ -6,6 +6,12 @@
          scheduled inexactly, see LocalReminderChannel. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Syncing the account needs the network. Declared here rather than only
+         in the debug manifest, where the Flutter tool puts it for hot reload:
+         a release build with it missing has no way to reach the server at all,
+         and the failure looks like a server outage rather than a manifest. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!--
       Backup is off, and this is a product decision, not a default.
 
@@ -22,10 +28,11 @@
       On Android 12+ this also turns off device-to-device transfer.
     -->
     <application
-        android:label="i_can_read"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

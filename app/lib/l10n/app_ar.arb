@@ -1,7 +1,7 @@
 {
   "@@locale": "ar",
 
-  "appTitle": "أقدر أقرأ",
+  "appTitle": "يقرأ",
 
   "navToday": "وردي اليوم",
   "navLibrary": "مكتبتي",
@@ -73,9 +73,40 @@
   },
   "libraryTabReading": "بقرأ فيه",
   "libraryTabFinished": "خلّصته",
-  "libraryTabArchived": "مؤرشف",
+  "libraryTabPaused": "موقوفة",
+  "libraryEmptyFinished": "لسه مفيش كتب خلّصتها.",
+  "libraryEmptyFinishedHint": "الكتاب بيتنقل هنا لما تقرأ آخر صفحة فيه، أو لما تقول إنك خلّصته.",
+  "libraryEmptyPaused": "مفيش حاجة موقوفة.",
+  "libraryEmptyPausedHint": "لما توقف خطة كتاب مؤقتاً هيستنى هنا وتذكيراته هتقف. والأيام اللي هيقعدها هنا مش محسوبة عليك.",
   "fileMissing": "الملف مش موجود على الجهاز ده",
   "fileMissingHint": "اضغط عشان تحدّد ملف الـ PDF",
+
+  "bookStartedOn": "بدأت {date}",
+  "@bookStartedOn": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookOfTheBook": "من الكتاب",
+  "bookPlanSection": "الخطة",
+  "bookSessionCount": "{count, plural, =0{من غير مواعيد} one{جلسة واحدة} two{جلستين} few{{count} جلسات} many{{count} جلسة} other{{count} جلسة}}",
+  "@bookSessionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "bookTargetWas": "كنت مستهدف {date}. الورد اليومي زي ما هو — التاريخ بس اتأخر.",
+  "@bookTargetWas": {
+    "description": "The one place in the app that mentions being late. States it as a date, at body weight, in ink — never as a failure.",
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookPausedSince": "متوقّفة من {date}. الأيام دي مش محسوبة عليك.",
+  "@bookPausedSince": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "bookReadingDays": "أيام القراءة",
+  "bookPause": "إيقاف مؤقت",
+  "bookResume": "استئناف",
+  "bookMarkFinished": "خلّصته",
+  "bookReturnToReading": "ارجع تقراه",
+  "bookNoPlanTitle": "لسه مفيش خطة للكتاب ده.",
+  "bookNoPlanHint": "حدّد هدفك — «أخلّصه في ٣٠ يوم» أو «١٥ صفحة في اليوم» — وإحنا نحسب الورد اليومي.",
 
   "planCreate": "إنشاء خطة",
   "planEdit": "تعديل الخطة",
@@ -159,6 +190,17 @@
   "statsEmpty": "لسه مفيش حاجة نعرضها.",
   "statsEmptyHint": "بعد ما تقرأ كام يوم، هتلاقي هنا إيقاعك والكتب اللي خلّصتها.",
   "statsWindowLast30Days": "آخر ٣٠ يوم",
+  "statsStreak": "يوم ورا يوم",
+  "statsAveragePages": "متوسط الصفحات باليوم",
+  "statsFinishedCount": "كتب خلّصتها",
+  "statsPagesPerDay": "صفحات باليوم",
+  "statsToday": "النهارده",
+  "statsFinishedSection": "ختمات خلّصتها",
+  "statsTookDays": "{count, plural, one{يوم واحد} two{يومين} few{{count} أيام} many{{count} يوم} other{{count} يوم}}",
+  "@statsTookDays": {
+    "description": "How long a finished book took, shown at the end of its row.",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "todayReadNow": "اقرأ دلوقتي",
   "todayDone": "تم",
   "todayRemaining": "فاضل {count} صفحة النهارده",
@@ -248,6 +290,13 @@
   "notificationExactAlarms": "مواعيد تذكير دقيقة",
   "notificationExactAlarmsHint": "مقفولة افتراضياً. التذكير ممكن يتأخر دقائق قليلة عشان التطبيق يستهلك بطارية أقل.",
 
+  "onboardingWelcome": "أهلاً بيك",
+  "onboardingTitle": "خلّص الكتب اللي بتبدأها.",
+  "onboardingBody": "اختار ملف PDF وحدّد هدفك — أخلّصه في ٣٠ يوم، أو أقرأ ١٥ صفحة في اليوم. إحنا نحسب ورد اليوم، نقسّمه على المواعيد اللي تختارها، ونفكّرك في وقتها.",
+  "onboardingMissedDays": "لو فاتك يوم، ورد اليوم يفضل زي ما هو بالظبط. اللي بيتحرّك هو تاريخ الانتهاء بس.",
+  "onboardingPrivacy": "ملفاتك بتفضل على الموبايل ده. عمرها ما بتترفع على أي سيرفر.",
+  "onboardingStart": "يلا نبدأ",
+
   "settingsLanguage": "اللغة",
   "settingsLanguageArabic": "العربية",
   "settingsLanguageEnglish": "English",
@@ -255,5 +304,45 @@
   "settingsTheme": "المظهر",
   "settingsThemeSystem": "حسب النظام",
   "settingsThemeLight": "فاتح",
-  "settingsThemeDark": "داكن"
+  "settingsThemeDark": "داكن",
+
+  "settingsAccount": "الحساب",
+  "settingsSignedOut": "بتقرأ من غير حساب.",
+  "settingsSignedOutHint": "الحساب بيحفظ كتبك وأهدافك وتقدّمك لو غيّرت الموبايل.",
+  "settingsSignIn": "سجّل دخولك أو اعمل حساب",
+  "settingsSignOut": "تسجيل الخروج",
+  "settingsSyncNow": "زامن دلوقتي",
+  "settingsSyncing": "بتزامن…",
+  "settingsSyncDone": "كل حاجة متزامنة",
+  "settingsSyncFailed": "المزامنة ما نجحتش. هنحاول تاني.",
+  "settingsSyncPending": "{count, plural, =1{تغيير واحد مستني المزامنة} =2{تغييرين مستنيين المزامنة} few{{count} تغييرات مستنية المزامنة} other{{count} تغيير مستني المزامنة}}",
+  "@settingsSyncPending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "accountTitle": "حسابك",
+  "accountModeSignIn": "تسجيل الدخول",
+  "accountModeRegister": "حساب جديد",
+  "accountIntro": "كتبك وأهدافك وكل اللي قريته بيتحفظوا في حسابك، فلو جبت موبايل جديد يكمّل من حيث ما وقفت.",
+  "accountPrivacy": "ملفات الـ PDF مش جزء من ده. بتفضل على الموبايل ده وعمرها ما بتترفع — وعلى موبايل جديد بتدلّ التطبيق على الملف تاني وتلاقي خطتك مستنياك.",
+  "accountEmail": "البريد الإلكتروني",
+  "accountPassword": "كلمة السر",
+  "accountPasswordRule": "ثمانية حروف على الأقل.",
+  "accountName": "الاسم (اختياري)",
+  "accountSubmitSignIn": "دخول",
+  "accountSubmitRegister": "اعمل الحساب",
+  "accountErrorEmail": "ده مش شكل بريد إلكتروني",
+  "accountErrorPasswordShort": "قصيرة — ثمانية حروف على الأقل",
+  "accountErrorEmailTaken": "البريد ده ليه حساب بالفعل. سجّل دخولك بدل ما تعمل حساب.",
+  "accountErrorCredentials": "البريد وكلمة السر مش متطابقين.",
+  "accountErrorOffline": "ما قدرناش نوصل للسيرفر. اطمن على الاتصال وجرّب تاني.",
+  "accountAdopting": "بنضيف كتبك لحسابك…",
+  "accountGoogle": "كمّل بحساب جوجل",
+  "accountOr": "أو",
+  "accountErrorGoogle": "الدخول بجوجل ما نجحش. جرّب تاني، أو استخدم بريد وكلمة سر.",
+  "accountErrorGoogleEmailTaken": "بريد جوجل ده ليه حساب بكلمة سر هنا. سجّل دخولك بكلمة السر بدل كده.",
+  "accountWelcome": "داخل باسم {email}",
+  "@accountWelcome": {
+    "placeholders": { "email": { "type": "String" } }
+  }
 }

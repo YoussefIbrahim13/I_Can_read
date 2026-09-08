@@ -54,6 +54,11 @@ dependencies:
   sqlite3: ^3.5.2
   shared_preferences: ^2.5.5
   drift_flutter: ^0.3.1
+  http: ^1.4.0
+  # 11.x compiles against Android SDK 37, which the AGP pinned here cannot
+  # target. See the compileSdk note in the README.
+  flutter_secure_storage: ^10.3.1
+  google_sign_in: ^7.2.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +74,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
   drift_dev: ^2.34.0
   build_runner: ^2.15.1
 
@@ -117,3 +123,18 @@ flutter:
           weight: 400
         - asset: assets/fonts/Lora-Variable.ttf
           weight: 600
+
+# Launcher icons. The source PNGs are generated from `AppMarkPainter` by
+# `flutter test tool/make_icon.dart` — regenerate them before running this, or
+# the launcher keeps whatever the mark used to look like:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/branding/icon.png"
+  # The adaptive foreground is transparent inside the page outline, so this
+  # colour is what shows through it.
+  adaptive_icon_background: "#F8F4F4"
+  adaptive_icon_foreground: "assets/branding/icon_foreground.png"
+  # iOS rejects icons with an alpha channel outright.
+  remove_alpha_ios: true

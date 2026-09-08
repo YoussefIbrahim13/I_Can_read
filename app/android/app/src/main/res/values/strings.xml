@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The name under the launcher icon. Localised in values-ar; the Dart
+         side has its own copy in the ARB files, because the launcher label is
+         chosen by Android before any Flutter code runs. -->
+    <string name="app_name">Yaqra</string>
+</resources>

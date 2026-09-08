@@ -5,17 +5,25 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/auth/auth_state.dart';
+import 'core/config/api_config.dart';
 import 'core/files/book_file_store.dart';
 import 'core/notifications/local_reminder_channel.dart';
 import 'core/notifications/reminder_channel.dart';
 import 'core/notifications/reminder_sync.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/sync_engine.dart';
 import 'core/settings/app_settings.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Read once, here, so a build with a missing or unusable API_BASE_URL fails
+  // while somebody is still watching it — rather than looking fine until the
+  // first reader tries to sign in.
+  ApiConfig.resolve();
 
   // Both need a platform round-trip, so they are resolved once here and
   // injected, rather than making every reader of them async.
@@ -44,10 +52,18 @@ class ICanReadApp extends ConsumerStatefulWidget {
 
 class _ICanReadAppState extends ConsumerState<ICanReadApp> {
   StreamSubscription<String>? _taps;
+  AppLifecycleListener? _lifecycle;
 
   @override
   void initState() {
     super.initState();
+
+    // Syncing on launch and on every return to the foreground, rather than
+    // only when the reader presses the button in settings. Reading happens
+    // offline and in short bursts; a queue that only drains when somebody
+    // thinks to drain it is a queue that is usually full.
+    _lifecycle = AppLifecycleListener(onResume: _sync);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
 
     final channel = ref.read(reminderChannelProvider);
     _taps = channel.taps.listen(_openBook);
@@ -62,7 +78,18 @@ class _ICanReadAppState extends ConsumerState<ICanReadApp> {
   @override
   void dispose() {
     _taps?.cancel();
+    _lifecycle?.dispose();
     super.dispose();
+  }
+
+  /// Drains the outbox and merges anything new, if there is an account.
+  ///
+  /// Signed out this does nothing at all — the controller has no engine to
+  /// run — which is what keeps a reader who never wanted an account from ever
+  /// making a network call.
+  void _sync() {
+    if (!mounted) return;
+    unawaited(ref.read(syncControllerProvider.notifier).syncNow());
   }
 
   /// A tapped reminder opens the book, not the app.
@@ -80,6 +107,11 @@ class _ICanReadAppState extends ConsumerState<ICanReadApp> {
     // Watched, not used: this is what keeps the scheduled reminders in step
     // with the database for as long as the app is alive.
     ref.watch(reminderSyncProvider);
+    // Also watched, not used, and for the same reason: providers auto-dispose
+    // here, and the session is loaded from secure storage *after* the notifier
+    // is built. Without a listener that outlives that round trip, the restored
+    // sign-in would be thrown away before anything could see it.
+    ref.watch(authStateProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,

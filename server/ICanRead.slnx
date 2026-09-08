@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ICanRead.Api/ICanRead.Api.csproj" />
+    <Project Path="src/ICanRead.Application/ICanRead.Application.csproj" />
+    <Project Path="src/ICanRead.Domain/ICanRead.Domain.csproj" />
+    <Project Path="src/ICanRead.Infrastructure/ICanRead.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ICanRead.Tests/ICanRead.Tests.csproj" />
+  </Folder>
+</Solution>
