@@ -19,6 +19,37 @@ public record LoginRequest(
 
 public record RefreshRequest([Required] string RefreshToken);
 
+public record ForgotPasswordRequest([Required, EmailAddress, MaxLength(320)] string Email);
+
+/// <summary>
+/// The address, the code that was emailed to it, and the new password.
+/// </summary>
+/// <remarks>
+/// The address travels with the code so the code itself can stay six digits.
+/// Without it the server would have to find an account by code alone, which
+/// means the code has to be unique across every account at once, and six digits
+/// is nowhere near enough for that.
+/// </remarks>
+public record ResetPasswordRequest(
+    [Required, EmailAddress, MaxLength(320)] string Email,
+    [Required, StringLength(6, MinimumLength = 6)] string Code,
+    [Required, MinLength(8), MaxLength(256)] string NewPassword);
+
+/// <summary>
+/// What a reset attempt did.
+/// </summary>
+/// <remarks>
+/// One failure value, as with sign-in: a wrong code, an expired code, a code
+/// already spent and an address with no account are all
+/// <see cref="Invalid"/>, because telling them apart is a way to find out which
+/// addresses have accounts.
+/// </remarks>
+public enum PasswordResetOutcome
+{
+    Reset,
+    Invalid
+}
+
 /// <summary>
 /// A Google ID token, straight from the device.
 /// </summary>

@@ -81,6 +81,38 @@
   "fileMissing": "الملف مش موجود على الجهاز ده",
   "fileMissingHint": "اضغط عشان تحدّد ملف الـ PDF",
 
+  "locateTitle": "حدّد ملف الـ PDF",
+  "locateIntro": "اختار ملف «{title}» من الجهاز ده.",
+  "@locateIntro": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateIntroHint": "خطتك وتقدّمك موجودين بالفعل — الملف بس هو الناقص. وهيفضل على الموبايل ده ومش هيترفع في أي مكان.",
+  "locateLinked": "«{title}» جاهز للقراءة",
+  "@locateLinked": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateWrongBook": "الملف ده بتاع كتاب تاني",
+  "locateWrongBookBody": "ده ملف «{title}». اختار ملف تاني للكتاب ده.",
+  "@locateWrongBookBody": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateDifferentCopy": "دي نسخة تانية",
+  "locateDifferentCopyBody": "مش نفس الملف اللي أضفته قبل كده — نسخة مصوّرة أو طبعة تانية. تحب نربطها بالكتاب ده برضه؟",
+  "locateSamePageCount": "عدد صفحاتها زي الأصلية بالظبط، فمفيش أي حاجة هتتغيّر في خطتك.",
+  "locatePageCountDiffers": "النسخة دي فيها {pages} صفحة، والكتاب متسجّل بـ {recorded}. يعني أرقام صفحاتك لازم تتحرّك بشكل أو بآخر.",
+  "@locatePageCountDiffers": {
+    "placeholders": {
+      "pages": { "type": "int" },
+      "recorded": { "type": "int" }
+    }
+  },
+  "locateKeepPages": "خلّي أرقام صفحاتي زي ما هي",
+  "locateKeepPagesHint": "صفحة ١٢٠ تفضل صفحة ١٢٠. الأنسب لما تكون نفس النسخة بصفحات زايدة أو ناقصة شوية.",
+  "locateRescale": "انقل تقدّمي للنسخة الجديدة",
+  "locateRescaleHint": "مكانك هيتحسب كموضع في الكتاب مش كرقم. الأنسب لما تكون النسخة مترتّبة بشكل مختلف.",
+  "locateLinkFile": "اربط الملف ده",
+  "locateChooseAnother": "اختار ملف تاني",
+
   "bookStartedOn": "بدأت {date}",
   "@bookStartedOn": {
     "placeholders": { "date": { "type": "String" } }
@@ -344,5 +376,24 @@
   "accountWelcome": "داخل باسم {email}",
   "@accountWelcome": {
     "placeholders": { "email": { "type": "String" } }
-  }
+  },
+
+  "accountForgotPassword": "نسيت كلمة السر؟",
+  "resetTitle": "غيّر كلمة السر",
+  "resetIntro": "قول لنا الإيميل بتاع حسابك وهنبعتلك كود من ٦ أرقام.",
+  "resetSendCode": "ابعتلي الكود",
+  "resetCodeSent": "لو {email} ليه حساب، الكود في طريقه ليه. صالح لمدة ربع ساعة.",
+  "@resetCodeSent": {
+    "placeholders": { "email": { "type": "String" } }
+  },
+  "resetCode": "الكود (٦ أرقام)",
+  "resetNewPassword": "كلمة السر الجديدة",
+  "resetSubmit": "غيّر كلمة السر",
+  "resetResend": "ابعت كود تاني",
+  "resetDone": "تم تغيير كلمة السر",
+  "resetDoneBody": "كل الأجهزة اللي كانت مسجّلة دخول اتسجّل خروجها. ادخل تاني بكلمة السر الجديدة.",
+  "resetBackToSignIn": "ارجع لتسجيل الدخول",
+  "resetErrorCode": "الكود ده مش صالح. اطلب كود جديد وجرّب تاني.",
+  "resetErrorTooMany": "محاولات كتير. استنى دقيقة وجرّب تاني.",
+  "resetSpamHint": "مجاش حاجة؟ بصّ في مجلد الـ spam قبل ما تطلب كود تاني — أول ما يتبعت كود جديد القديم بيبطّل يشتغل."
 }

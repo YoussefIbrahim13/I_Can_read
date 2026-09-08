@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
     public DbSet<Book> Books => Set<Book>();
     public DbSet<BookFingerprint> BookFingerprints => Set<BookFingerprint>();
     public DbSet<ReadingPlan> ReadingPlans => Set<ReadingPlan>();
@@ -44,6 +45,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PasswordResetCode>(e =>
+        {
+            e.ToTable("password_reset_codes");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.CodeHash).HasMaxLength(64).IsRequired().IsFixedLength();
+            e.HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // The only query there is: the newest code for one account.
+            e.HasIndex(c => new { c.UserId, c.CreatedAt });
         });
 
         b.Entity<Book>(e =>

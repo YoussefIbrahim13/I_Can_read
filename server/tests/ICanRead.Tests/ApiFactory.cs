@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
+using ICanRead.Application.Email;
 using ICanRead.Infrastructure.Auth;
 using ICanRead.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +30,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         "Server=.\\SQLEXPRESS01;Database=ICanRead_Test;Integrated Security=true;" +
         "TrustServerCertificate=true;MultipleActiveResultSets=true";
 
+    /// <summary>Every message the API tried to send, in place of a mail provider.</summary>
+    public RecordingEmailSender Mail { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Development);
@@ -38,7 +44,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Jwt:SigningKey"] = "test-signing-key-thirty-two-bytes-or-more",
-                ["ConnectionStrings:Default"] = ConnectionString
+                ["ConnectionStrings:Default"] = ConnectionString,
+                // The suite knocks on the auth endpoints far harder than any
+                // person would, and all of it from one address. The limit has a
+                // test of its own that sets its own ceiling.
+                ["RateLimit:AuthPermitLimit"] = "100000"
             });
         });
 
@@ -50,6 +60,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             services.RemoveAll<IGoogleTokenVerifier>();
             services.AddScoped<IGoogleTokenVerifier, StubGoogleTokenVerifier>();
+
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(Mail);
         });
     }
 
@@ -113,6 +126,38 @@ public class StubGoogleTokenVerifier : IGoogleTokenVerifier
 
         return Task.FromResult<GooglePrincipal?>(
             new GooglePrincipal(subject, email, "Reader"));
+    }
+}
+
+/// <summary>
+/// Keeps every message instead of sending it, so a test can read the code a
+/// reader would have been emailed.
+/// </summary>
+/// <remarks>
+/// Concurrent because the factory is shared across a collection and the API
+/// serves requests on its own threads.
+/// </remarks>
+public class RecordingEmailSender : IEmailSender
+{
+    private readonly ConcurrentDictionary<string, EmailMessage> _lastByAddress = new();
+
+    public Task SendAsync(EmailMessage message, CancellationToken ct)
+    {
+        _lastByAddress[message.ToAddress] = message;
+        return Task.CompletedTask;
+    }
+
+    public EmailMessage? LastTo(string address) =>
+        _lastByAddress.GetValueOrDefault(address.Trim().ToLowerInvariant());
+
+    /// <summary>The six digits out of the last message sent to an address.</summary>
+    public string? CodeFor(string address)
+    {
+        var body = LastTo(address)?.PlainTextBody;
+        if (body is null) return null;
+
+        var match = Regex.Match(body, @"\b\d{6}\b");
+        return match.Success ? match.Value : null;
     }
 }
 

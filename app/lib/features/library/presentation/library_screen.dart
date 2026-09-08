@@ -219,7 +219,7 @@ class _BookRow extends StatelessWidget {
                     ),
                   const SizedBox(height: AppSpacing.x1),
                   if (fileMissing)
-                    const _MissingFile()
+                    _MissingFile(bookId: book.id)
                   else if (plan case final plan?)
                     _PlanProgress(book: book, plan: plan)
                   else ...[
@@ -310,7 +310,9 @@ class _PlanProgress extends StatelessWidget {
 /// they are on a different phone, or the file was moved — and there is a
 /// one-tap way out.
 class _MissingFile extends StatelessWidget {
-  const _MissingFile();
+  const _MissingFile({required this.bookId});
+
+  final String bookId;
 
   @override
   Widget build(BuildContext context) {
@@ -329,9 +331,11 @@ class _MissingFile extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x1 + 1),
         OutlinedButton(
-          // Relinking is not built yet; the add-book flow already recognises a
-          // known fingerprint and reattaches the file to its existing book.
-          onPressed: () => context.push('/books/add'),
+          // Straight to this book's own locate flow rather than to the general
+          // add-book screen: the reader already said which book they mean by
+          // tapping its row, and the file they pick is checked against this
+          // book rather than treated as a new import.
+          onPressed: () => context.push('/books/$bookId/locate'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 30),
             padding: const EdgeInsets.symmetric(horizontal: 11),

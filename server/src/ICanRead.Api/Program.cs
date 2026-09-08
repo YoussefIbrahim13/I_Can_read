@@ -1,8 +1,14 @@
 using System.Text;
+using System.Threading.RateLimiting;
+using ICanRead.Api;
+using ICanRead.Application.Email;
 using ICanRead.Domain.Entities;
 using ICanRead.Infrastructure.Auth;
+using ICanRead.Infrastructure.Email;
 using ICanRead.Infrastructure.Persistence;
 using ICanRead.Infrastructure.Sync;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -47,12 +53,71 @@ builder.Services.AddOptions<GoogleOptions>()
         + "and must never be set on a deployed server.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<SendGridOptions>()
+    .Bind(builder.Configuration.GetSection(SendGridOptions.Section))
+    // A deployed server that cannot send mail cannot reset a password, and a
+    // reader who cannot reset a password has lost their library. Missing
+    // configuration fails at boot rather than at the moment somebody needs it.
+    .Validate(o => isDevelopment || !string.IsNullOrWhiteSpace(o.ApiKey),
+        "SendGrid:ApiKey is required outside Development.")
+    .Validate(o => isDevelopment || !string.IsNullOrWhiteSpace(o.FromAddress),
+        "SendGrid:FromAddress is required outside Development.")
+    .ValidateOnStart();
+
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+
+// Development without a key still gets a working reset flow — the code goes to
+// the console. Outside Development the options validation above has already
+// refused to boot, so this branch cannot be reached there.
+if (string.IsNullOrWhiteSpace(builder.Configuration[$"{SendGridOptions.Section}:ApiKey"]))
+{
+    builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+}
+else
+{
+    builder.Services.AddHttpClient<IEmailSender, SendGridEmailSender>(client =>
+    {
+        client.BaseAddress = new Uri("https://api.sendgrid.com/");
+        // Mail is sent inside a request the reader is waiting on, so a provider
+        // having a slow day must not hold that request open indefinitely.
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
+}
+
+// Rate limiting, on the endpoints where guessing pays: sign-in, and the reset
+// code. Keyed by remote address rather than by account — the account is exactly
+// what an attacker is enumerating, so keying on it would let them spread the
+// work across addresses and never hit a limit.
+builder.Services.Configure<RateLimitOptions>(
+    builder.Configuration.GetSection(AuthRateLimit.Section));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy(AuthRateLimit.Policy, context =>
+    {
+        // Resolved per request rather than captured here. Configuration a host
+        // layers on after this line — which is exactly what the test host does
+        // — would otherwise be read too early to have any effect.
+        var limits = context.RequestServices
+            .GetRequiredService<IOptions<RateLimitOptions>>().Value;
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limits.AuthPermitLimit,
+                Window = TimeSpan.FromSeconds(limits.AuthWindowSeconds)
+            });
+    });
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -81,6 +146,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

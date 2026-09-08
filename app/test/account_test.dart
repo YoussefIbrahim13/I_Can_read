@@ -79,6 +79,35 @@ class FakeAuth implements AuthClient {
   Future<AuthResponse> refresh(String refreshToken) async =>
       _response('reader@example.com');
 
+  /// Addresses a reset code was asked for, in order.
+  final List<String> codesRequested = [];
+
+  /// Codes the fake will accept. Anything else is refused the way the server
+  /// refuses one: a 400 with nothing to distinguish it.
+  final Set<String> validCodes = {'123456'};
+
+  /// `(email, password)` of every reset that went through.
+  final List<(String, String)> passwordsReset = [];
+
+  @override
+  Future<void> forgotPassword(String email) async {
+    if (failure case final failure?) throw failure;
+    codesRequested.add(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    if (failure case final failure?) throw failure;
+    if (!validCodes.contains(code)) {
+      throw const AuthException('bad code', 400);
+    }
+    passwordsReset.add((email, newPassword));
+  }
+
   @override
   Future<void> logout(String refreshToken) async {}
 

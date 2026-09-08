@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/google_identity.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -8,6 +9,7 @@ import '../../../core/widgets/screen_header.dart';
 import '../../../core/widgets/segmented_control.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/account_controller.dart';
+import '../application/password_reset_controller.dart';
 
 /// Signing in and creating an account, on one screen.
 ///
@@ -57,7 +59,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     // state change that closes the screen rather than the button that started
     // it — a sign-in that lands while the app is backgrounded still finishes.
     ref.listen<AccountState>(accountControllerProvider, (previous, next) {
-      if (next is AccountSignedIn && context.mounted) Navigator.of(context).pop();
+      if (next is AccountSignedIn && context.mounted) {
+        Navigator.of(context).pop();
+      }
     });
 
     final busy = state is AccountWorking || state is AccountAdopting;
@@ -163,6 +167,37 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       onSubmitted: (_) => _submit(),
                     ),
                   ],
+                  // Only on the way in. On the register side there is no
+                  // password to have forgotten yet.
+                  if (_mode == AccountMode.signIn)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                // Cleared first: the provider outlives this
+                                // screen, and a reader coming back for a second
+                                // reset would otherwise open on the last one's
+                                // "your password is set".
+                                ref
+                                    .read(
+                                      passwordResetControllerProvider.notifier,
+                                    )
+                                    .reset();
+                                final typed = _email.text.trim();
+                                context.push(
+                                  Uri(
+                                    path: '/account/reset',
+                                    queryParameters: typed.isEmpty
+                                        ? null
+                                        : {'email': typed},
+                                  ).toString(),
+                                );
+                              },
+                        child: Text(l10n.accountForgotPassword),
+                      ),
+                    ),
                   if (state is AccountFailed) ...[
                     const SizedBox(height: AppSpacing.x3),
                     _Problem(_message(l10n, state.error)),
@@ -197,16 +232,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               ),
               child: OutlinedButton(
                 onPressed: busy ? null : _submit,
-                child: Text(
-                  switch (state) {
-                    AccountAdopting() => l10n.accountAdopting,
-                    AccountWorking() => l10n.settingsSyncing,
-                    _ => switch (_mode) {
-                      AccountMode.signIn => l10n.accountSubmitSignIn,
-                      AccountMode.register => l10n.accountSubmitRegister,
-                    },
+                child: Text(switch (state) {
+                  AccountAdopting() => l10n.accountAdopting,
+                  AccountWorking() => l10n.settingsSyncing,
+                  _ => switch (_mode) {
+                    AccountMode.signIn => l10n.accountSubmitSignIn,
+                    AccountMode.register => l10n.accountSubmitRegister,
                   },
-                ),
+                }),
               ),
             ),
           ],

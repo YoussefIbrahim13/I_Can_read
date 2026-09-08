@@ -9,6 +9,9 @@ import '../../../core/auth/google_identity.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/sync/sync_engine.dart';
+import 'account_rules.dart';
+
+export 'account_rules.dart' show minPasswordLength;
 
 /// Which of the two things the account screen is doing.
 enum AccountMode { signIn, register }
@@ -61,10 +64,6 @@ final class AccountSignedIn extends AccountState {
   final String email;
 }
 
-/// The shortest password the server will take. Checked here too, so the reader
-/// finds out before a round trip rather than after one.
-const minPasswordLength = 8;
-
 /// Which account the books on this phone belong to.
 ///
 /// Written the first time a reader signs in. It is what tells a guest library
@@ -83,7 +82,7 @@ class AccountController extends Notifier<AccountState> {
     String? displayName,
   }) async {
     final trimmed = email.trim();
-    if (!_looksLikeEmail(trimmed)) {
+    if (!looksLikeEmail(trimmed)) {
       state = const AccountFailed(AccountError.email);
       return;
     }
@@ -224,19 +223,6 @@ class AccountController extends Notifier<AccountState> {
 
     await ref.read(authStateProvider.notifier).signOut();
     state = const AccountIdle();
-  }
-
-  /// Enough of a check to catch a typo, and no more.
-  ///
-  /// Deliberately not an RFC-shaped pattern: those reject addresses that work,
-  /// and the only thing that really settles it is the server accepting it.
-  bool _looksLikeEmail(String value) {
-    final at = value.indexOf('@');
-    return at > 0 &&
-        at == value.lastIndexOf('@') &&
-        value.indexOf('.', at) > at + 1 &&
-        !value.endsWith('.') &&
-        !value.contains(' ');
   }
 }
 

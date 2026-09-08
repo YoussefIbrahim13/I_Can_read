@@ -32,8 +32,9 @@ class AuthResponse {
     return AuthResponse(
       accessToken: json['accessToken'] as String,
       refreshToken: json['refreshToken'] as String,
-      accessTokenExpiresAt:
-          DateTime.parse(json['accessTokenExpiresAt'] as String),
+      accessTokenExpiresAt: DateTime.parse(
+        json['accessTokenExpiresAt'] as String,
+      ),
       user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
     );
   }
@@ -42,11 +43,7 @@ class AuthResponse {
 /// A representation of the authenticated user.
 class AuthUser {
   /// Creates an [AuthUser].
-  const AuthUser({
-    required this.id,
-    required this.email,
-    this.displayName,
-  });
+  const AuthUser({required this.id, required this.email, this.displayName});
 
   /// Unique user ID.
   final String id;
@@ -87,7 +84,7 @@ class AuthClient {
   /// Creates an [AuthClient] pointed at [baseUrl], with an optional custom
   /// [httpClient].
   AuthClient({required this.baseUrl, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+    : _http = httpClient ?? http.Client();
 
   /// The API origin, from [ApiConfig] — never a hardcoded address.
   final String baseUrl;
@@ -151,6 +148,46 @@ class AuthClient {
     return _parse(response);
   }
 
+  /// Asks the server to email a reset code to [email].
+  ///
+  /// Answers nothing, and answers the same nothing for an address with no
+  /// account — the server will not say which addresses it knows, and neither
+  /// can this. A failure here is a network failure, not a wrong address.
+  Future<void> forgotPassword(String email) async {
+    final response = await _http.post(
+      Uri.parse('$baseUrl/api/auth/forgot-password'),
+      headers: _headers,
+      body: jsonEncode({'email': email}),
+    );
+    if (response.statusCode != 204) {
+      throw AuthException(response.body, response.statusCode);
+    }
+  }
+
+  /// Spends a reset code and sets a new password.
+  ///
+  /// Throws with 400 when the code is wrong, expired, already used, or has been
+  /// guessed at too many times — the server does not distinguish, and neither
+  /// does the screen.
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final response = await _http.post(
+      Uri.parse('$baseUrl/api/auth/reset-password'),
+      headers: _headers,
+      body: jsonEncode({
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      }),
+    );
+    if (response.statusCode != 204) {
+      throw AuthException(response.body, response.statusCode);
+    }
+  }
+
   /// Invalidates the given refresh token on the server.
   Future<void> logout(String refreshToken) async {
     await _http.post(
@@ -168,10 +205,7 @@ class AuthClient {
         jsonDecode(response.body) as Map<String, dynamic>,
       );
     }
-    throw AuthException(
-      response.body,
-      response.statusCode,
-    );
+    throw AuthException(response.body, response.statusCode);
   }
 
   /// Closes the underlying HTTP client.

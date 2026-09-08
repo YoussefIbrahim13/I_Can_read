@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../planning/page_rescale.dart';
 import '../planning/plan_math.dart';
 import '../sync/sync_mappers.dart';
 import '../sync/sync_models.dart';
@@ -82,13 +83,12 @@ class AppDatabase extends _$AppDatabase {
   /// book twice and wondering why nothing changed.
   Stream<List<Book>> watchBooksByPause({required bool paused}) {
     final pausedPlan = existsQuery(
-      select(readingPlans)
-        ..where(
-          (p) =>
-              p.bookId.equalsExp(books.id) &
-              p.isActive.equals(true) &
-              p.pausedAt.isNotNull(),
-        ),
+      select(readingPlans)..where(
+        (p) =>
+            p.bookId.equalsExp(books.id) &
+            p.isActive.equals(true) &
+            p.pausedAt.isNotNull(),
+      ),
     );
 
     return (select(books)
@@ -221,6 +221,97 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Accepts a file the book has never seen as another copy of it.
+  ///
+  /// This is the manual end of the locate flow: the hash matched nothing, so
+  /// the reader vouched for the file themselves. The new fingerprint is added
+  /// rather than replacing the old one — the original copy may still exist on
+  /// another phone, and it must keep relinking there.
+  ///
+  /// When the copy has a different page count, every stored page number now
+  /// refers to a file that no longer exists on this device, so the plan has to
+  /// move with it. [rescaleProgress] picks which way: proportionally, or by
+  /// keeping the numbers and clamping what falls off the end.
+  ///
+  /// The reading log is left alone in both cases. It is append-only history —
+  /// what was read on a given day happened, and rewriting it to fit a file the
+  /// reader picked today would be inventing a past.
+  ///
+  /// [pagesPerDay] is left alone too: the daily portion is the promise the
+  /// reader made, and a relink is not a renegotiation of it.
+  Future<void> relinkBookFile({
+    required String bookId,
+    required String relativePath,
+    required String fingerprintId,
+    required String sha256,
+    required int filePageCount,
+    required int sizeBytes,
+    String? originalFileName,
+    required bool rescaleProgress,
+    required DateTime now,
+  }) {
+    return transaction(() async {
+      final book = await (select(
+        books,
+      )..where((b) => b.id.equals(bookId))).getSingle();
+
+      await into(bookFingerprints).insert(
+        BookFingerprintsCompanion.insert(
+          id: fingerprintId,
+          bookId: bookId,
+          sha256: sha256,
+          pageCount: filePageCount,
+          sizeBytes: sizeBytes,
+          originalFileName: Value(originalFileName),
+          createdAt: now,
+        ),
+      );
+      await linkBookFile(bookId: bookId, relativePath: relativePath, now: now);
+
+      final fingerprint = await (select(
+        bookFingerprints,
+      )..where((f) => f.id.equals(fingerprintId))).getSingle();
+      await _enqueue(
+        SyncEntity.fingerprints,
+        fingerprintId,
+        SyncOp.upsert,
+        fingerprintDto(fingerprint).toJson(),
+      );
+
+      if (filePageCount == book.pageCount) return;
+
+      final was = book.pageCount;
+      await (update(books)..where((b) => b.id.equals(bookId))).write(
+        BooksCompanion(pageCount: Value(filePageCount), updatedAt: Value(now)),
+      );
+      await _enqueueBook(bookId);
+
+      int moved(int page) => rescaleProgress
+          ? rescalePage(page, fromCount: was, toCount: filePageCount)
+          : clampPage(page, toCount: filePageCount);
+
+      final plans = await (select(
+        readingPlans,
+      )..where((p) => p.bookId.equals(bookId))).get();
+
+      for (final plan in plans) {
+        final start = moved(plan.startPage);
+        final end = moved(plan.endPage);
+        await (update(readingPlans)..where((p) => p.id.equals(plan.id))).write(
+          ReadingPlansCompanion(
+            // A plan that started on page 1 has to keep starting somewhere, so
+            // the floor is a page rather than the zero sentinel.
+            startPage: Value(start < 1 ? 1 : start),
+            endPage: Value(end < start ? start : end),
+            lastPageRead: Value(moved(plan.lastPageRead)),
+            updatedAt: Value(now),
+          ),
+        );
+        await _enqueuePlan(plan.id);
+      }
+    });
+  }
+
   /// The book's stored relative path, or null when no file is linked here.
   Future<String?> localFilePath(String bookId) async {
     final row =
@@ -330,14 +421,11 @@ class AppDatabase extends _$AppDatabase {
   Future<void> pausePlan(String planId, DateTime now) {
     return transaction(() async {
       final changed =
-          await (update(readingPlans)
-                ..where((p) => p.id.equals(planId) & p.pausedAt.isNull()))
-              .write(
-                ReadingPlansCompanion(
-                  pausedAt: Value(now),
-                  updatedAt: Value(now),
-                ),
-              );
+          await (update(
+            readingPlans,
+          )..where((p) => p.id.equals(planId) & p.pausedAt.isNull())).write(
+            ReadingPlansCompanion(pausedAt: Value(now), updatedAt: Value(now)),
+          );
       // Nothing changed means the plan was already paused. Queueing anyway
       // would push a row whose `updatedAt` moved for no reason, and hand the
       // conflict to a device that has something newer to say.
@@ -412,10 +500,7 @@ class AppDatabase extends _$AppDatabase {
         await (update(
           readingSessions,
         )..where((s) => s.id.equals(row.id))).write(
-          ReadingSessionsCompanion(
-            deletedAt: Value(at),
-            updatedAt: Value(at),
-          ),
+          ReadingSessionsCompanion(deletedAt: Value(at), updatedAt: Value(at)),
         );
         await _enqueue(
           SyncEntity.sessions,
@@ -432,10 +517,9 @@ class AppDatabase extends _$AppDatabase {
         await into(readingSessions).insertOnConflictUpdate(
           companion.copyWith(deletedAt: const Value(null)),
         );
-        final row =
-            await (select(readingSessions)
-                  ..where((s) => s.id.equals(companion.id.value)))
-                .getSingle();
+        final row = await (select(
+          readingSessions,
+        )..where((s) => s.id.equals(companion.id.value))).getSingle();
         await _enqueue(
           SyncEntity.sessions,
           row.id,
@@ -453,14 +537,13 @@ class AppDatabase extends _$AppDatabase {
   /// the reminder schedule without anything having to clean up after it.
   Stream<List<({Book book, ReadingPlan plan, ReadingSession session})>>
   watchLivePlanSessions({bool remindersOnly = false}) {
-    final query =
-        select(readingSessions).join([
-          innerJoin(
-            readingPlans,
-            readingPlans.id.equalsExp(readingSessions.planId),
-          ),
-          innerJoin(books, books.id.equalsExp(readingPlans.bookId)),
-        ])..orderBy([OrderingTerm.asc(readingSessions.ordinal)]);
+    final query = select(readingSessions).join([
+      innerJoin(
+        readingPlans,
+        readingPlans.id.equalsExp(readingSessions.planId),
+      ),
+      innerJoin(books, books.id.equalsExp(readingPlans.bookId)),
+    ])..orderBy([OrderingTerm.asc(readingSessions.ordinal)]);
 
     // A paused plan owes nothing today and reminds about nothing. It stays in
     // the library, where the reader can see it and resume it.
@@ -558,10 +641,8 @@ class AppDatabase extends _$AppDatabase {
 
     return query
         .map(
-          (row) => (
-            book: row.readTable(books),
-            plan: row.readTable(readingPlans),
-          ),
+          (row) =>
+              (book: row.readTable(books), plan: row.readTable(readingPlans)),
         )
         .watch();
   }
@@ -576,7 +657,9 @@ class AppDatabase extends _$AppDatabase {
     return query.watch().map(
       (rows) => Map.fromEntries(
         rows
-            .map((row) => (id: row.read(readingLog.planId)!, date: row.read(last)))
+            .map(
+              (row) => (id: row.read(readingLog.planId)!, date: row.read(last)),
+            )
             // A group with no maximum cannot happen in SQL, but the column is
             // typed nullable and a silent `!` here would be a crash later.
             .where((row) => row.date != null)
@@ -591,11 +674,7 @@ class AppDatabase extends _$AppDatabase {
   /// months later should find the goal exactly where it was — and a plan on a
   /// non-reading book already owes nothing, because every query that drives
   /// today's list and the reminders filters on the book's status.
-  Future<void> setBookStatus(
-    String bookId,
-    BookStatus status,
-    DateTime now,
-  ) {
+  Future<void> setBookStatus(String bookId, BookStatus status, DateTime now) {
     return transaction(() async {
       await (update(books)..where((b) => b.id.equals(bookId))).write(
         BooksCompanion(status: Value(status), updatedAt: Value(now)),
@@ -754,9 +833,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Every unsent outbox row, oldest first.
   Future<List<SyncOutboxData>> pendingOutboxEntries() {
-    return (select(syncOutbox)
-          ..orderBy([(e) => OrderingTerm.asc(e.createdAt)]))
-        .get();
+    return (select(
+      syncOutbox,
+    )..orderBy([(e) => OrderingTerm.asc(e.createdAt)])).get();
   }
 
   /// How many changes are still waiting to be sent, kept live.
@@ -765,9 +844,9 @@ class AppDatabase extends _$AppDatabase {
   /// something the reader can check rather than something we assert.
   Stream<int> watchPendingSyncCount() {
     final count = syncOutbox.id.count();
-    return (selectOnly(syncOutbox)..addColumns([count]))
-        .map((row) => row.read(count) ?? 0)
-        .watchSingle();
+    return (selectOnly(
+      syncOutbox,
+    )..addColumns([count])).map((row) => row.read(count) ?? 0).watchSingle();
   }
 
   /// Removes outbox rows that were successfully pushed.
@@ -847,9 +926,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Discards outbox rows that failed too many times.
   Future<void> deleteStaleOutboxEntries({int maxAttempts = 5}) {
-    return (delete(syncOutbox)
-          ..where((e) => e.attempts.isBiggerOrEqualValue(maxAttempts)))
-        .go();
+    return (delete(
+      syncOutbox,
+    )..where((e) => e.attempts.isBiggerOrEqualValue(maxAttempts))).go();
   }
 
   // -------------------------------------------------------------------------
@@ -860,9 +939,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> mergeBooks(List<BookDto> remote) {
     return transaction(() async {
       for (final dto in remote) {
-        final local = await (select(books)
-              ..where((b) => b.id.equals(dto.id)))
-            .getSingleOrNull();
+        final local = await (select(
+          books,
+        )..where((b) => b.id.equals(dto.id))).getSingleOrNull();
 
         if (local == null) {
           await into(books).insert(
@@ -872,10 +951,12 @@ class AppDatabase extends _$AppDatabase {
               author: Value(dto.author),
               pageCount: dto.pageCount,
               pageLabelOffset: Value(dto.pageLabelOffset),
-              status: Value(BookStatus.values.firstWhere(
-                (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
-                orElse: () => BookStatus.reading,
-              )),
+              status: Value(
+                BookStatus.values.firstWhere(
+                  (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
+                  orElse: () => BookStatus.reading,
+                ),
+              ),
               createdAt: dto.createdAt,
               updatedAt: dto.updatedAt,
               deletedAt: Value(dto.deletedAt),
@@ -888,10 +969,12 @@ class AppDatabase extends _$AppDatabase {
               author: Value(dto.author),
               pageCount: Value(dto.pageCount),
               pageLabelOffset: Value(dto.pageLabelOffset),
-              status: Value(BookStatus.values.firstWhere(
-                (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
-                orElse: () => BookStatus.reading,
-              )),
+              status: Value(
+                BookStatus.values.firstWhere(
+                  (s) => s.name.toLowerCase() == dto.status.toLowerCase(),
+                  orElse: () => BookStatus.reading,
+                ),
+              ),
               updatedAt: Value(dto.updatedAt),
               deletedAt: Value(dto.deletedAt),
             ),
@@ -905,9 +988,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> mergeFingerprints(List<FingerprintDto> remote) {
     return transaction(() async {
       for (final dto in remote) {
-        final exists = await (select(bookFingerprints)
-              ..where((f) => f.id.equals(dto.id)))
-            .getSingleOrNull();
+        final exists = await (select(
+          bookFingerprints,
+        )..where((f) => f.id.equals(dto.id))).getSingleOrNull();
         if (exists != null) continue;
 
         await into(bookFingerprints).insert(
@@ -930,9 +1013,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> mergePlans(List<PlanDto> remote) {
     return transaction(() async {
       for (final dto in remote) {
-        final local = await (select(readingPlans)
-              ..where((p) => p.id.equals(dto.id)))
-            .getSingleOrNull();
+        final local = await (select(
+          readingPlans,
+        )..where((p) => p.id.equals(dto.id))).getSingleOrNull();
 
         final mode = PlanMode.values.firstWhere(
           (m) => m.name.toLowerCase() == dto.mode.toLowerCase(),
@@ -962,36 +1045,34 @@ class AppDatabase extends _$AppDatabase {
           );
         } else {
           // Progress always takes the maximum, regardless of who wins LWW.
-          final furthest =
-              dto.lastPageRead > local.lastPageRead
-                  ? dto.lastPageRead
-                  : local.lastPageRead;
+          final furthest = dto.lastPageRead > local.lastPageRead
+              ? dto.lastPageRead
+              : local.lastPageRead;
 
           if (dto.updatedAt.isBefore(local.updatedAt)) {
             // The remote row is older — only its progress can contribute.
             if (furthest != local.lastPageRead) {
-              await (update(readingPlans)
-                    ..where((p) => p.id.equals(dto.id)))
-                  .write(ReadingPlansCompanion(
-                    lastPageRead: Value(furthest),
-                  ));
+              await (update(readingPlans)..where((p) => p.id.equals(dto.id)))
+                  .write(ReadingPlansCompanion(lastPageRead: Value(furthest)));
             }
           } else {
-            await (update(readingPlans)
-                  ..where((p) => p.id.equals(dto.id)))
-                .write(ReadingPlansCompanion(
-                  mode: Value(mode),
-                  startPage: Value(dto.startPage),
-                  endPage: Value(dto.endPage),
-                  startDate: Value(startDate),
-                  targetEndDate: Value(targetEndDate),
-                  pagesPerDay: Value(dto.pagesPerDay),
-                  lastPageRead: Value(furthest),
-                  isActive: Value(dto.isActive),
-                  pausedAt: Value(dto.pausedAt),
-                  pausedDays: Value(dto.pausedDays),
-                  updatedAt: Value(dto.updatedAt),
-                ));
+            await (update(
+              readingPlans,
+            )..where((p) => p.id.equals(dto.id))).write(
+              ReadingPlansCompanion(
+                mode: Value(mode),
+                startPage: Value(dto.startPage),
+                endPage: Value(dto.endPage),
+                startDate: Value(startDate),
+                targetEndDate: Value(targetEndDate),
+                pagesPerDay: Value(dto.pagesPerDay),
+                lastPageRead: Value(furthest),
+                isActive: Value(dto.isActive),
+                pausedAt: Value(dto.pausedAt),
+                pausedDays: Value(dto.pausedDays),
+                updatedAt: Value(dto.updatedAt),
+              ),
+            );
           }
         }
       }
@@ -1002,9 +1083,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> mergeSessions(List<SessionDto> remote) {
     return transaction(() async {
       for (final dto in remote) {
-        final local = await (select(readingSessions)
-              ..where((s) => s.id.equals(dto.id)))
-            .getSingleOrNull();
+        final local = await (select(
+          readingSessions,
+        )..where((s) => s.id.equals(dto.id))).getSingleOrNull();
 
         if (local == null) {
           await into(readingSessions).insert(
@@ -1021,17 +1102,19 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
         } else if (!dto.updatedAt.isBefore(local.updatedAt)) {
-          await (update(readingSessions)
-                ..where((s) => s.id.equals(dto.id)))
-              .write(ReadingSessionsCompanion(
-                ordinal: Value(dto.ordinal),
-                timeOfDayMinutes: Value(dto.timeOfDayMinutes),
-                pagesShare: Value(dto.pagesShare),
-                daysOfWeek: Value(dto.daysOfWeek),
-                isEnabled: Value(dto.isEnabled),
-                updatedAt: Value(dto.updatedAt),
-                deletedAt: Value(dto.deletedAt),
-              ));
+          await (update(
+            readingSessions,
+          )..where((s) => s.id.equals(dto.id))).write(
+            ReadingSessionsCompanion(
+              ordinal: Value(dto.ordinal),
+              timeOfDayMinutes: Value(dto.timeOfDayMinutes),
+              pagesShare: Value(dto.pagesShare),
+              daysOfWeek: Value(dto.daysOfWeek),
+              isEnabled: Value(dto.isEnabled),
+              updatedAt: Value(dto.updatedAt),
+              deletedAt: Value(dto.deletedAt),
+            ),
+          );
         }
       }
     });
@@ -1042,9 +1125,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> mergeLogEntries(List<LogEntryDto> remote) {
     return transaction(() async {
       for (final dto in remote) {
-        final exists = await (select(readingLog)
-              ..where((l) => l.id.equals(dto.id)))
-            .getSingleOrNull();
+        final exists = await (select(
+          readingLog,
+        )..where((l) => l.id.equals(dto.id))).getSingleOrNull();
         if (exists != null) continue;
 
         await into(readingLog).insert(

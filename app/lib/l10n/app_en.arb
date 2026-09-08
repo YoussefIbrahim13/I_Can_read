@@ -81,6 +81,38 @@
   "fileMissing": "File not on this device",
   "fileMissingHint": "Tap to locate the PDF",
 
+  "locateTitle": "Locate the PDF",
+  "locateIntro": "Choose the PDF of \"{title}\" on this device.",
+  "@locateIntro": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateIntroHint": "Your plan and your progress are already here — only the file is missing. It stays on this phone and is never uploaded.",
+  "locateLinked": "\"{title}\" is ready to read",
+  "@locateLinked": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateWrongBook": "This file belongs to another book",
+  "locateWrongBookBody": "It is the PDF of \"{title}\". Choose a different file for this book.",
+  "@locateWrongBookBody": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "locateDifferentCopy": "This is a different copy",
+  "locateDifferentCopyBody": "It is not the file you added before — another scan or edition. Link it to this book anyway?",
+  "locateSamePageCount": "It has the same number of pages, so nothing about your plan changes.",
+  "locatePageCountDiffers": "This copy has {pages} pages; the book was recorded with {recorded}. Your page numbers have to move one way or the other.",
+  "@locatePageCountDiffers": {
+    "placeholders": {
+      "pages": { "type": "int" },
+      "recorded": { "type": "int" }
+    }
+  },
+  "locateKeepPages": "Keep my page numbers",
+  "locateKeepPagesHint": "Page 120 stays page 120. Best when the copy is the same book with a few pages added or dropped.",
+  "locateRescale": "Move my progress across",
+  "locateRescaleHint": "Where you were is kept as a position in the book, not as a number. Best when the copy is laid out differently.",
+  "locateLinkFile": "Link this file",
+  "locateChooseAnother": "Choose another file",
+
   "bookStartedOn": "Started {date}",
   "@bookStartedOn": {
     "placeholders": { "date": { "type": "String" } }
@@ -346,5 +378,24 @@
   "accountWelcome": "Signed in as {email}",
   "@accountWelcome": {
     "placeholders": { "email": { "type": "String" } }
-  }
+  },
+
+  "accountForgotPassword": "Forgot your password?",
+  "resetTitle": "Reset your password",
+  "resetIntro": "Tell us the address on your account and we'll email you a six-digit code.",
+  "resetSendCode": "Email me a code",
+  "resetCodeSent": "If {email} has an account, a code is on its way. It expires in fifteen minutes.",
+  "@resetCodeSent": {
+    "placeholders": { "email": { "type": "String" } }
+  },
+  "resetCode": "The six-digit code",
+  "resetNewPassword": "New password",
+  "resetSubmit": "Set my password",
+  "resetResend": "Send another code",
+  "resetDone": "Your password is set",
+  "resetDoneBody": "Every device that was signed in has been signed out. Sign in again with your new password.",
+  "resetBackToSignIn": "Back to sign in",
+  "resetErrorCode": "That code is not valid. Ask for a new one and try again.",
+  "resetErrorTooMany": "Too many attempts. Wait a minute, then try again.",
+  "resetSpamHint": "Nothing arrived? Check your spam folder before asking for another code — the old one stops working the moment a new one is sent."
 }

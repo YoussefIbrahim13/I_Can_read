@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/password_reset_screen.dart';
 import '../../features/add_book/presentation/add_book_screen.dart';
 import '../../features/book_detail/presentation/book_detail_screen.dart';
 import '../../features/library/presentation/library_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/plan/presentation/plan_screen.dart';
 import '../../features/reader/presentation/reader_screen.dart';
+import '../../features/relink/presentation/locate_file_screen.dart';
 import '../../features/sessions/presentation/sessions_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/stats/presentation/stats_screen.dart';
@@ -38,6 +40,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/account',
         builder: (context, state) => const AccountScreen(),
+      ),
+      // A step off the sign-in screen rather than a child of it: the reader
+      // came here because the password they have does not work, so the screen
+      // that asked for it has nothing more to offer until this one is done.
+      GoRoute(
+        path: '/account/reset',
+        builder: (context, state) => PasswordResetScreen(
+          initialEmail: state.uri.queryParameters['email'],
+        ),
       ),
       // Outside the shell: adding a book is a focused task, so the tab bar
       // would only offer a way to abandon it half-done.
@@ -76,6 +87,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             toPage: page('to'),
           );
         },
+      ),
+      // Outside the shell for the same reason as adding a book: it is one task
+      // — hand this book its PDF back — and the way out is back to the book.
+      GoRoute(
+        path: '/books/:id/locate',
+        builder: (context, state) =>
+            LocateFileScreen(bookId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/books/:id/plan/sessions',

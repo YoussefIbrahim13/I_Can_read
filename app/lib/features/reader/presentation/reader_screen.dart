@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../core/db/app_database.dart';
@@ -59,6 +60,13 @@ class ReaderScreen extends ConsumerWidget {
                 child: EmptyState(
                   title: l10n.fileMissing,
                   message: l10n.fileMissingHint,
+                  // The reader came here to read, so the way out of an empty
+                  // screen has to be the thing that makes reading possible —
+                  // not an instruction to go and find it somewhere else.
+                  action: OutlinedButton(
+                    onPressed: () => context.push('/books/$bookId/locate'),
+                    child: Text(l10n.libraryLocateFile),
+                  ),
                 ),
               ),
             ],

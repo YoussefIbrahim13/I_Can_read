@@ -4,13 +4,21 @@ using ICanRead.Infrastructure.Auth;
 using ICanRead.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace ICanRead.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AuthService auth, IGoogleTokenVerifier google) : ControllerBase
+// Every way into an account, under one limit: sign-in, registration, the reset
+// code, and the token exchange. Guessing is the thing being slowed down, and it
+// does not matter which of these doors it knocks on.
+[EnableRateLimiting(AuthRateLimit.Policy)]
+public class AuthController(
+    AuthService auth,
+    PasswordResetService passwordReset,
+    IGoogleTokenVerifier google) : ControllerBase
 {
     [HttpPost("google")]
     public async Task<IActionResult> Google(GoogleSignInRequest request, CancellationToken ct)
@@ -43,6 +51,36 @@ public class AuthController(AuthService auth, IGoogleTokenVerifier google) : Con
         // No content either way. Whether that token existed is not something an
         // unauthenticated caller gets to find out.
         return NoContent();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        ForgotPasswordRequest request,
+        CancellationToken ct)
+    {
+        await passwordReset.RequestAsync(request.Email, ct);
+        // Always the same answer. Whether that address has an account here is
+        // not something an unauthenticated caller gets to find out.
+        return NoContent();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        ResetPasswordRequest request,
+        CancellationToken ct)
+    {
+        var outcome = await passwordReset.ResetAsync(
+            request.Email, request.Code, request.NewPassword, ct);
+
+        return outcome == PasswordResetOutcome.Reset
+            ? NoContent()
+            // Deliberately not signed in on the way out: the reader has a
+            // password now and the ordinary sign-in path can use it, and this
+            // way a reset never hands out a session as a side effect.
+            : BadRequest(new ProblemDetails
+            {
+                Title = "That code is not valid. Ask for a new one."
+            });
     }
 
     private IActionResult Respond(AuthResult result) => result switch

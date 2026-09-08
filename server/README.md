@@ -15,6 +15,8 @@ metadata, plans and progress.
 | Flutter `SyncEngine` draining `sync_outbox` | done |
 | Sign-in / register screens, guest-data adoption | done |
 | Google Sign-In: `POST /api/auth/google`, ID token verified against Google's keys | done |
+| Password reset: `POST /api/auth/forgot-password` · `POST /api/auth/reset-password`, code emailed via SendGrid | server done, app screens pending |
+| Rate limiting on `/api/auth/*` | done |
 
 ## How sync works
 
@@ -109,6 +111,41 @@ Compare `date -u` against a real source and fix the clock.
 widens the expiry check by that many minutes, which is a real hole while it is
 set, so startup refuses a non-zero value outside Development. It is a crutch
 for a broken clock, not configuration — delete it once the clock is right.
+
+### Password reset
+
+A reader who forgot their password asks for a code at
+`POST /api/auth/forgot-password`, then spends it at
+`POST /api/auth/reset-password` along with the new password.
+
+**A six-digit code, not a link.** A link needs somewhere to land, and this app
+has no website and no deep-link setup — a code is something the phone can accept
+on the screen the reader is already looking at.
+
+Six digits is only a million guesses, so the code is hedged from four
+directions: it lives fifteen minutes, only the newest one per account is live,
+five wrong tries destroy it, and `/api/auth/*` is rate limited by address. Only
+the SHA-256 of the code is stored.
+
+`forgot-password` answers `204` for every address, whether or not it has an
+account, and swallows mail failures for the same reason — a `500` on a send
+failure would answer "does this address have an account here?" precisely,
+because nothing is sent for one that does not. Failures go to the log instead.
+
+Sending needs a SendGrid API key and a verified sender address:
+
+```jsonc
+// server/src/ICanRead.Api/appsettings.Development.json
+{
+  "SendGrid": { "ApiKey": "SG.…", "FromAddress": "no-reply@yourdomain" }
+}
+```
+
+Leave `ApiKey` empty in Development and the code is written to the console
+instead, so a fresh clone can walk the whole flow without an account. Outside
+Development, startup fails without it: a server that cannot send mail cannot
+reset a password, and a reader who cannot reset a password has lost their
+library.
 
 ## Tests
 
