@@ -47,19 +47,35 @@ public class GoogleTokenVerifier(
             return null;
         }
 
+        var settings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            // Without this the check is only "Google signed something",
+            // which every ID token from every app on the device also
+            // satisfies. Pinning the audience is what makes it "signed
+            // for us".
+            Audience = [config.ClientId]
+        };
+
+        if (config.ClockToleranceMinutes > 0)
+        {
+            var tolerance = TimeSpan.FromMinutes(config.ClockToleranceMinutes);
+            settings.IssuedAtClockTolerance = tolerance;
+            settings.ExpirationTimeClockTolerance = tolerance;
+
+            // Warned on every token, not once at startup, and deliberately so.
+            // This weakens the expiry check, and the log of a server running
+            // this way should say so next to each sign-in it let through
+            // rather than in a line somebody scrolled past hours earlier.
+            log.LogWarning(
+                "Verifying a Google ID token with a {Minutes}-minute clock tolerance. "
+                + "Expiry is not being enforced accurately; fix the machine's clock.",
+                config.ClockToleranceMinutes);
+        }
+
         GoogleJsonWebSignature.Payload payload;
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(
-                idToken,
-                new GoogleJsonWebSignature.ValidationSettings
-                {
-                    // Without this the check is only "Google signed something",
-                    // which every ID token from every app on the device also
-                    // satisfies. Pinning the audience is what makes it "signed
-                    // for us".
-                    Audience = [config.ClientId]
-                });
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
         }
         catch (InvalidJwtException e)
         {

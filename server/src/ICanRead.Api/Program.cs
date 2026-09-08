@@ -28,11 +28,24 @@ builder.Services.AddOptions<JwtOptions>()
         "Jwt:SigningKey must be at least 32 bytes.")
     .ValidateOnStart();
 
-// Not validated on start, unlike the signing key: an install that does not
-// offer Google sign-in is a legitimate configuration, and refusing to boot
-// over it would make an optional feature mandatory.
+// The client ID is not validated on start, unlike the signing key: an install
+// that does not offer Google sign-in is a legitimate configuration, and
+// refusing to boot over it would make an optional feature mandatory.
+//
+// The clock tolerance is the opposite case. It is a development-only crutch
+// that widens the window an ID token stays usable in, and the way a setting
+// like that reaches production is by sitting in a config file nobody re-read.
+// Boot fails instead — the same rule the signing key follows.
+var isDevelopment = builder.Environment.IsDevelopment();
 builder.Services.AddOptions<GoogleOptions>()
-    .Bind(builder.Configuration.GetSection(GoogleOptions.Section));
+    .Bind(builder.Configuration.GetSection(GoogleOptions.Section))
+    .Validate(o => o.ClockToleranceMinutes >= 0,
+        "Google:ClockToleranceMinutes cannot be negative.")
+    .Validate(o => o.ClockToleranceMinutes == 0 || isDevelopment,
+        "Google:ClockToleranceMinutes may only be set in Development. "
+        + "It exists to work around a wrong clock on a developer's machine "
+        + "and must never be set on a deployed server.")
+    .ValidateOnStart();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();

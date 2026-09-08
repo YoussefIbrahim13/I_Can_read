@@ -14,7 +14,7 @@ metadata, plans and progress.
 | Sync: `GET /api/sync/pull` · `POST /api/sync/push` · `POST /api/books/lookup-by-hash` | done |
 | Flutter `SyncEngine` draining `sync_outbox` | done |
 | Sign-in / register screens, guest-data adoption | done |
-| Google Sign-In | not started — needs a `serverClientId` from Google Cloud |
+| Google Sign-In: `POST /api/auth/google`, ID token verified against Google's keys | done |
 
 ## How sync works
 
@@ -81,6 +81,34 @@ dotnet run --project src/ICanRead.Api
 ```
 
 `GET /health` answers `{"status":"ok"}` once it is up.
+
+### Google sign-in
+
+`Google:ClientId` in `appsettings.json` is the **Web** OAuth client ID, and it
+is committed on purpose: the same string ships inside the APK, and it names the
+Google Cloud project rather than authorising anything. There is no client
+secret — this server verifies ID tokens rather than trading authorization
+codes. Leave the value empty to turn the feature off; the button disappears
+with it.
+
+The Android OAuth client is what lets a device get a token at all, and it never
+appears in code — Google matches it by package name and signing certificate.
+One has to exist in the same Cloud project for each certificate you build with,
+`com.icanread.i_can_read` plus that keystore's SHA-1. A missing or mismatched
+one is not an error you can see from here: Google signs the reader in and hands
+back a null ID token, which reaches the app as a plain "sign-in failed".
+
+**If every token is rejected as expired, check the clock before the config.**
+Google's ID tokens live exactly one hour, so a server whose clock is even
+slightly fast refuses tokens that are seconds old. The `GoogleTokenVerifier`
+warning prints `iat`, `exp` and the server's `now` for this reason — when `exp`
+is `iat + 3600` and `now` is just past it, the machine is wrong, not the token.
+Compare `date -u` against a real source and fix the clock.
+
+`Google:ClockToleranceMinutes` exists for that situation and only that one. It
+widens the expiry check by that many minutes, which is a real hole while it is
+set, so startup refuses a non-zero value outside Development. It is a crutch
+for a broken clock, not configuration — delete it once the clock is right.
 
 ## Tests
 

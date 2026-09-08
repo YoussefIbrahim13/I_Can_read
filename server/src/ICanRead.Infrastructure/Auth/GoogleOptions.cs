@@ -31,4 +31,25 @@ public class GoogleOptions
 
     /// <summary>Whether Google sign-in is configured at all.</summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
+
+    /// <summary>
+    /// How far this server's clock is allowed to disagree with Google's, in
+    /// minutes. Zero — the default, and the only correct value in deployment.
+    /// </summary>
+    /// <remarks>
+    /// This exists for exactly one situation: a development machine whose clock
+    /// is wrong. Google mints an ID token that is valid for an hour, and a
+    /// server running an hour fast rejects every one of them as expired the
+    /// moment it arrives — a sign-in that fails with nothing wrong on either
+    /// side of it.
+    ///
+    /// It is not a fix, and it is a real hole while it is set: an ID token
+    /// stays usable for this long past the expiry Google gave it. Startup
+    /// refuses to run with a non-zero value outside Development, so this cannot
+    /// reach a deployed server by being left in a config file.
+    ///
+    /// The actual fix is the machine's clock. See the note in
+    /// appsettings.Development.json for why one was needed here.
+    /// </remarks>
+    public int ClockToleranceMinutes { get; set; }
 }
