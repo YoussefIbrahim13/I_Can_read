@@ -15,8 +15,9 @@ metadata, plans and progress.
 | Flutter `SyncEngine` draining `sync_outbox` | done |
 | Sign-in / register screens, guest-data adoption | done |
 | Google Sign-In: `POST /api/auth/google`, ID token verified against Google's keys | done |
-| Password reset: `POST /api/auth/forgot-password` · `POST /api/auth/reset-password`, code emailed via SendGrid | server done, app screens pending |
+| Password reset: `POST /api/auth/forgot-password` · `POST /api/auth/reset-password`, code emailed over SMTP | done |
 | Rate limiting on `/api/auth/*` | done |
+| Account deletion: `POST /api/me/delete` | done |
 
 ## How sync works
 
@@ -132,20 +133,54 @@ account, and swallows mail failures for the same reason — a `500` on a send
 failure would answer "does this address have an account here?" precisely,
 because nothing is sent for one that does not. Failures go to the log instead.
 
-Sending needs a SendGrid API key and a verified sender address:
+Sending goes over **SMTP via MailKit**, not a provider's own HTTP API: SMTP is
+the one interface every provider speaks, so moving from Gmail to a company relay
+is a configuration change rather than a rewrite.
 
 ```jsonc
 // server/src/ICanRead.Api/appsettings.Development.json
 {
-  "SendGrid": { "ApiKey": "SG.…", "FromAddress": "no-reply@yourdomain" }
+  "EmailSettings": {
+    "SmtpServer": "smtp.gmail.com",
+    "Port": 587,
+    "SenderEmail": "you@gmail.com",
+    "Password": "the sixteen-character app password"
+  }
 }
 ```
 
-Leave `ApiKey` empty in Development and the code is written to the console
-instead, so a fresh clone can walk the whole flow without an account. Outside
-Development, startup fails without it: a server that cannot send mail cannot
-reset a password, and a reader who cannot reset a password has lost their
+On Gmail that password must be an **app password** from an account with 2FA on;
+the account's own password does not authenticate against SMTP at all. The
+connection is forced to STARTTLS rather than negotiated — `Auto` falls back to
+an unencrypted session when a server does not advertise TLS, and the password
+would go out in the clear.
+
+Leave the section empty in Development and the code is written to the console
+instead, so a fresh clone can walk the whole flow without a mail account.
+Outside Development, startup fails without it: a server that cannot send mail
+cannot reset a password, and a reader who cannot reset a password has lost their
 library.
+
+### Deleting an account
+
+`POST /api/me/delete` closes the account and removes everything it holds. A real
+delete, not a flag: Google Play requires an in-app way to delete an account, and
+a row merely marked as gone is not a deletion.
+
+**A valid access token is not proof enough.** It lasts half an hour, so a phone
+left unlocked on a table is a valid access token, and this is the one call that
+cannot be undone. The caller re-proves the account is theirs the same way they
+got in: the password if the account has one, and a fresh Google ID token —
+matched on the subject, never the email — if Google is the only way in.
+
+The reading log is deleted explicitly, before the account. Its foreign key is
+`Restrict` on purpose, so it is the one table a cascade would leave behind, and
+leaving it would keep a deleted reader's history.
+
+The PDFs are not part of this, because they were never here. The app leaves the
+books on the phone alone too, and returns that library to being a guest library
+— the files are the reader's own, and wiping a device is not what "delete my
+account" asked for.
 
 ## Tests
 

@@ -80,10 +80,9 @@ void main() {
     semantics = null;
   }
 
-  Future<List<ReadingSession>> storedSessions() =>
-      (db.select(db.readingSessions)
-            ..orderBy([(s) => OrderingTerm.asc(s.ordinal)]))
-          .get();
+  Future<List<ReadingSession>> storedSessions() => (db.select(
+    db.readingSessions,
+  )..orderBy([(s) => OrderingTerm.asc(s.ordinal)])).get();
 
   testWidgets('opens on one evening session holding the whole portion', (
     tester,

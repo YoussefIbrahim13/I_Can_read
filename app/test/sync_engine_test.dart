@@ -37,7 +37,8 @@ class FakeServer implements SyncApi {
     pushes.add(payload);
     return SyncPushResponse(
       serverTime: serverTime ?? _jan1,
-      applied: payload.books.length +
+      applied:
+          payload.books.length +
           payload.fingerprints.length +
           payload.plans.length +
           payload.sessions.length +
@@ -113,26 +114,31 @@ void main() {
   }
 
   group('the outbox', () {
-    test('an imported book queues the book and its fingerprint, not the file',
-        () async {
-      await importBook();
+    test(
+      'an imported book queues the book and its fingerprint, not the file',
+      () async {
+        await importBook();
 
-      final queued = await db.pendingOutboxEntries();
-      expect(
-        queued.map((e) => e.entity),
-        [SyncEntity.books, SyncEntity.fingerprints],
-      );
-      // The PDF and where it sits on this phone are the two things that never
-      // leave it, so there is deliberately nothing here for local_book_files.
-      expect(queued.map((e) => e.entity), isNot(contains('local_book_files')));
-    });
+        final queued = await db.pendingOutboxEntries();
+        expect(queued.map((e) => e.entity), [
+          SyncEntity.books,
+          SyncEntity.fingerprints,
+        ]);
+        // The PDF and where it sits on this phone are the two things that never
+        // leave it, so there is deliberately nothing here for local_book_files.
+        expect(
+          queued.map((e) => e.entity),
+          isNot(contains('local_book_files')),
+        );
+      },
+    );
 
     test('reading queues the log entry and the advanced plan', () async {
       await importBook();
       final planId = await makePlan();
-      await db.deleteOutboxEntries(
-        [for (final e in await db.pendingOutboxEntries()) e.id],
-      );
+      await db.deleteOutboxEntries([
+        for (final e in await db.pendingOutboxEntries()) e.id,
+      ]);
 
       await db.recordReading(
         planId: planId,
@@ -143,27 +149,29 @@ void main() {
       );
 
       final queued = await db.pendingOutboxEntries();
-      expect(
-        queued.map((e) => e.entity),
-        [SyncEntity.logEntries, SyncEntity.plans],
-      );
+      expect(queued.map((e) => e.entity), [
+        SyncEntity.logEntries,
+        SyncEntity.plans,
+      ]);
     });
 
-    test('pausing an already-paused plan queues nothing the second time',
-        () async {
-      await importBook();
-      final planId = await makePlan();
-      await db.pausePlan(planId, _jan1);
-      await db.deleteOutboxEntries(
-        [for (final e in await db.pendingOutboxEntries()) e.id],
-      );
+    test(
+      'pausing an already-paused plan queues nothing the second time',
+      () async {
+        await importBook();
+        final planId = await makePlan();
+        await db.pausePlan(planId, _jan1);
+        await db.deleteOutboxEntries([
+          for (final e in await db.pendingOutboxEntries()) e.id,
+        ]);
 
-      // A double tap on the pause button must not push a row whose only change
-      // is a newer updatedAt, or it wins a conflict it has nothing to say in.
-      await db.pausePlan(planId, _jan1.add(const Duration(hours: 1)));
+        // A double tap on the pause button must not push a row whose only change
+        // is a newer updatedAt, or it wins a conflict it has nothing to say in.
+        await db.pausePlan(planId, _jan1.add(const Duration(hours: 1)));
 
-      expect(await db.pendingOutboxEntries(), isEmpty);
-    });
+        expect(await db.pendingOutboxEntries(), isEmpty);
+      },
+    );
 
     test('replacing the reminders queues the old ones as tombstones', () async {
       await importBook();
@@ -178,9 +186,9 @@ void main() {
           updatedAt: _jan1,
         ),
       ], now: _jan1);
-      await db.deleteOutboxEntries(
-        [for (final e in await db.pendingOutboxEntries()) e.id],
-      );
+      await db.deleteOutboxEntries([
+        for (final e in await db.pendingOutboxEntries()) e.id,
+      ]);
 
       // The reader moves the reminder to 21:00, which rebuilds the list.
       await db.replaceSessions(planId, [
@@ -203,59 +211,60 @@ void main() {
       expect(sessions.map((s) => s.id), ['session-new']);
     });
 
-    test('a reminder that keeps its id is edited, not buried and rebuilt',
-        () async {
-      await importBook();
-      final planId = await makePlan();
-      Future<void> save(int minutes) => db.replaceSessions(planId, [
-            ReadingSessionsCompanion.insert(
-              id: '$planId-0',
-              planId: planId,
-              ordinal: 0,
-              timeOfDayMinutes: minutes,
-              pagesShare: 10,
-              updatedAt: _jan1,
-            ),
-          ], now: _jan1);
+    test(
+      'a reminder that keeps its id is edited, not buried and rebuilt',
+      () async {
+        await importBook();
+        final planId = await makePlan();
+        Future<void> save(int minutes) => db.replaceSessions(planId, [
+          ReadingSessionsCompanion.insert(
+            id: '$planId-0',
+            planId: planId,
+            ordinal: 0,
+            timeOfDayMinutes: minutes,
+            pagesShare: 10,
+            updatedAt: _jan1,
+          ),
+        ], now: _jan1);
 
-      await save(20 * 60);
-      await db.clearOutbox();
-      await save(6 * 60 + 30);
+        await save(20 * 60);
+        await db.clearOutbox();
+        await save(6 * 60 + 30);
 
-      // Nothing was retired, because nothing went away — an id that comes back
-      // is the same reminder at a new time.
-      final queued = await db.pendingOutboxEntries();
-      expect(queued.map((e) => e.op), [SyncOp.upsert]);
-      final sessions = await db.watchSessionsFor(planId).first;
-      expect(sessions.single.timeOfDayMinutes, 6 * 60 + 30);
-    });
+        // Nothing was retired, because nothing went away — an id that comes back
+        // is the same reminder at a new time.
+        final queued = await db.pendingOutboxEntries();
+        expect(queued.map((e) => e.op), [SyncOp.upsert]);
+        final sessions = await db.watchSessionsFor(planId).first;
+        expect(sessions.single.timeOfDayMinutes, 6 * 60 + 30);
+      },
+    );
 
-    test('signing in seeds the outbox with everything already on the phone',
-        () async {
-      await importBook();
-      final planId = await makePlan();
-      await db.recordReading(
-        planId: planId,
-        fromPage: 1,
-        toPage: 10,
-        readAt: _jan1,
-        logId: 'log-1',
-      );
-      // Everything so far was written as a guest, with nowhere to send it.
-      await db.clearOutbox();
+    test(
+      'signing in seeds the outbox with everything already on the phone',
+      () async {
+        await importBook();
+        final planId = await makePlan();
+        await db.recordReading(
+          planId: planId,
+          fromPage: 1,
+          toPage: 10,
+          readAt: _jan1,
+          logId: 'log-1',
+        );
+        // Everything so far was written as a guest, with nowhere to send it.
+        await db.clearOutbox();
 
-      await db.seedOutboxFromLocalData();
+        await db.seedOutboxFromLocalData();
 
-      expect(
-        (await db.pendingOutboxEntries()).map((e) => e.entity).toSet(),
-        {
+        expect((await db.pendingOutboxEntries()).map((e) => e.entity).toSet(), {
           SyncEntity.books,
           SyncEntity.fingerprints,
           SyncEntity.plans,
           SyncEntity.logEntries,
-        },
-      );
-    });
+        });
+      },
+    );
   });
 
   group('push', () {
@@ -285,19 +294,21 @@ void main() {
       expect(await db.pendingOutboxEntries(), isNotEmpty);
     });
 
-    test('drops a row the server keeps refusing rather than wedging the queue',
-        () async {
-      await importBook();
-      server.pushFailure = const SyncException(400, 'rejected');
+    test(
+      'drops a row the server keeps refusing rather than wedging the queue',
+      () async {
+        await importBook();
+        server.pushFailure = const SyncException(400, 'rejected');
 
-      for (var attempt = 0; attempt < 5; attempt++) {
-        await engine.syncNow();
-      }
+        for (var attempt = 0; attempt < 5; attempt++) {
+          await engine.syncNow();
+        }
 
-      // Five refusals is enough to conclude the server will never take it.
-      // Retrying forever would block every later change behind it.
-      expect(await db.pendingOutboxEntries(), isEmpty);
-    });
+        // Five refusals is enough to conclude the server will never take it.
+        // Retrying forever would block every later change behind it.
+        expect(await db.pendingOutboxEntries(), isEmpty);
+      },
+    );
   });
 
   group('pull', () {
@@ -306,14 +317,16 @@ void main() {
       expect(server.cursors, [null]);
     });
 
-    test('the next pull asks from the server time, not this device clock',
-        () async {
-      server.serverTime = DateTime.utc(2026, 3, 1, 12);
-      await engine.syncNow();
-      await engine.syncNow();
+    test(
+      'the next pull asks from the server time, not this device clock',
+      () async {
+        server.serverTime = DateTime.utc(2026, 3, 1, 12);
+        await engine.syncNow();
+        await engine.syncNow();
 
-      expect(server.cursors.last, DateTime.utc(2026, 3, 1, 12));
-    });
+        expect(server.cursors.last, DateTime.utc(2026, 3, 1, 12));
+      },
+    );
 
     test('a failed merge leaves the cursor where it was', () async {
       // A plan whose book never arrives violates the foreign key. The rows
@@ -362,8 +375,10 @@ void main() {
       final status = await engine.syncNow();
 
       expect((status as SyncComplete).pulled, 1);
-      expect((await db.findBook('book-from-phone-2'))?.title,
-          'Read on the other phone');
+      expect(
+        (await db.findBook('book-from-phone-2'))?.title,
+        'Read on the other phone',
+      );
     });
 
     test('what was merged in is not queued straight back out', () async {

@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:i_can_read/core/db/app_database.dart';
+import 'package:i_can_read/core/files/book_file_store.dart';
 import 'package:i_can_read/core/planning/plan_math.dart';
 import 'package:i_can_read/core/theme/app_theme.dart';
 import 'package:i_can_read/features/book_detail/presentation/book_detail_screen.dart';
@@ -18,8 +21,20 @@ final _today = DateTime(2026, 1, 5);
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase(NativeDatabase.memory()));
-  tearDown(() => db.close());
+  // A store the actions can reach. The detail screen can now remove a book,
+  // and removing one deletes the app's copy of its PDF.
+  late Directory documents;
+  late BookFileStore store;
+
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    documents = await Directory.systemTemp.createTemp('i_can_read_detail');
+    store = BookFileStore(documents);
+  });
+  tearDown(() async {
+    await db.close();
+    if (documents.existsSync()) await documents.delete(recursive: true);
+  });
 
   // Drift's stream-close timer and any semantics handle both have to be
   // cleared inside the test body; see sessions_screen_test.dart.
@@ -86,6 +101,7 @@ void main() {
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
+          bookFileStoreProvider.overrideWithValue(store),
           todayProvider.overrideWithValue(_today),
         ],
         child: MaterialApp(
@@ -188,7 +204,9 @@ void main() {
     await pumpDetail(tester);
 
     expect(
-      find.text("Paused since 3 January. These days aren't counted against you."),
+      find.text(
+        "Paused since 3 January. These days aren't counted against you.",
+      ),
       findsOneWidget,
     );
     expect(find.text('Resume'), findsOneWidget);
@@ -310,7 +328,9 @@ void main() {
     expect(find.text('الخطة'), findsOneWidget);
     expect(find.text('الانتهاء المتوقّع: 14 يناير'), findsOneWidget);
     expect(
-      find.text('كنت مستهدف 10 يناير. الورد اليومي زي ما هو — التاريخ بس اتأخر.'),
+      find.text(
+        'كنت مستهدف 10 يناير. الورد اليومي زي ما هو — التاريخ بس اتأخر.',
+      ),
       findsOneWidget,
     );
     expect(find.text('خلّصته'), findsOneWidget);

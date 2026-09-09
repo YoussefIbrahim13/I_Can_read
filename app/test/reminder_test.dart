@@ -100,9 +100,10 @@ void main() {
         request(ordinal: 2, minutes: 13 * 60),
       ]);
 
-      expect([
-        for (final r in reminders) r.minutes,
-      ], [7 * 60 + 30, 13 * 60, 21 * 60]);
+      expect(
+        [for (final r in reminders) r.minutes],
+        [7 * 60 + 30, 13 * 60, 21 * 60],
+      );
     });
 
     test('caps the set, keeping the earliest times', () {

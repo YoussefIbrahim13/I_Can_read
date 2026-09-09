@@ -163,14 +163,27 @@ class FakeSecureStorage implements FlutterSecureStorage {
   final Map<String, String> values = {};
 
   @override
-  Future<String?> read({required String key, dynamic iOptions, dynamic aOptions,
-      dynamic lOptions, dynamic webOptions, dynamic mOptions,
-      dynamic wOptions}) async => values[key];
+  Future<String?> read({
+    required String key,
+    dynamic iOptions,
+    dynamic aOptions,
+    dynamic lOptions,
+    dynamic webOptions,
+    dynamic mOptions,
+    dynamic wOptions,
+  }) async => values[key];
 
   @override
-  Future<void> write({required String key, required String? value,
-      dynamic iOptions, dynamic aOptions, dynamic lOptions, dynamic webOptions,
-      dynamic mOptions, dynamic wOptions}) async {
+  Future<void> write({
+    required String key,
+    required String? value,
+    dynamic iOptions,
+    dynamic aOptions,
+    dynamic lOptions,
+    dynamic webOptions,
+    dynamic mOptions,
+    dynamic wOptions,
+  }) async {
     if (value == null) {
       values.remove(key);
     } else {
@@ -179,9 +192,15 @@ class FakeSecureStorage implements FlutterSecureStorage {
   }
 
   @override
-  Future<void> delete({required String key, dynamic iOptions, dynamic aOptions,
-      dynamic lOptions, dynamic webOptions, dynamic mOptions,
-      dynamic wOptions}) async {
+  Future<void> delete({
+    required String key,
+    dynamic iOptions,
+    dynamic aOptions,
+    dynamic lOptions,
+    dynamic webOptions,
+    dynamic mOptions,
+    dynamic wOptions,
+  }) async {
     values.remove(key);
   }
 
@@ -312,21 +331,23 @@ void main() {
       );
     });
 
-    test('wrong details are named as wrong details, not as a server error',
-        () async {
-      auth.failure = const AuthException('unauthorized', 401);
+    test(
+      'wrong details are named as wrong details, not as a server error',
+      () async {
+        auth.failure = const AuthException('unauthorized', 401);
 
-      await controller().submit(
-        mode: AccountMode.signIn,
-        email: 'reader@example.com',
-        password: 'longenoughpassword',
-      );
+        await controller().submit(
+          mode: AccountMode.signIn,
+          email: 'reader@example.com',
+          password: 'longenoughpassword',
+        );
 
-      expect(
-        (container.read(accountControllerProvider) as AccountFailed).error,
-        AccountError.credentials,
-      );
-    });
+        expect(
+          (container.read(accountControllerProvider) as AccountFailed).error,
+          AccountError.credentials,
+        );
+      },
+    );
 
     test('a successful sign-in leaves a session behind', () async {
       await controller().submit(
@@ -342,9 +363,8 @@ void main() {
 
   group('a Google token is checked for freshness before it is sent', () {
     String jwt(Map<String, dynamic> claims) {
-      String segment(Object value) => base64Url
-          .encode(utf8.encode(jsonEncode(value)))
-          .replaceAll('=', '');
+      String segment(Object value) =>
+          base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
       return '${segment({'alg': 'RS256'})}.${segment(claims)}.not-a-signature';
     }
 
@@ -354,7 +374,8 @@ void main() {
       // The one that actually broke: Credential Manager handed back a token it
       // minted an hour earlier, and the server refused it — correctly.
       final token = jwt({
-        'exp': now.subtract(const Duration(seconds: 1)).millisecondsSinceEpoch ~/
+        'exp':
+            now.subtract(const Duration(seconds: 1)).millisecondsSinceEpoch ~/
             1000,
       });
 
@@ -364,7 +385,8 @@ void main() {
     test('a token about to expire counts as expired', () {
       // It still has to survive the trip to the server.
       final token = jwt({
-        'exp': now.add(const Duration(seconds: 5)).millisecondsSinceEpoch ~/ 1000,
+        'exp':
+            now.add(const Duration(seconds: 5)).millisecondsSinceEpoch ~/ 1000,
       });
 
       expect(hasExpired(token, now: now), isTrue);
@@ -396,8 +418,10 @@ void main() {
       // the client asserts alongside would be a claim, not a fact.
       expect(auth.googleTokens, ['a-token-google-signed']);
       expect(container.read(accountControllerProvider), isA<AccountSignedIn>());
-      expect(container.read(authStateProvider)?.email,
-          'google-reader@example.com');
+      expect(
+        container.read(authStateProvider)?.email,
+        'google-reader@example.com',
+      );
     });
 
     test('backing out of the picker is not reported as a failure', () async {
@@ -435,14 +459,16 @@ void main() {
       );
     });
 
-    test('brings the guest library along, exactly as a password sign-in does',
-        () async {
-      await readAsGuest();
+    test(
+      'brings the guest library along, exactly as a password sign-in does',
+      () async {
+        await readAsGuest();
 
-      await controller().signInWithGoogle();
+        await controller().signInWithGoogle();
 
-      expect(sync.pushes.single.books.single.id, 'book-1');
-    });
+        expect(sync.pushes.single.books.single.id, 'book-1');
+      },
+    );
 
     test('signing out forgets the chosen Google account', () async {
       await controller().signInWithGoogle();
@@ -493,28 +519,30 @@ void main() {
       expect(sync.pushes, isEmpty);
     });
 
-    test('is not handed to a different reader signing in on the same phone',
-        () async {
-      await readAsGuest();
-      await controller().submit(
-        mode: AccountMode.signIn,
-        email: 'first@example.com',
-        password: 'longenoughpassword',
-      );
-      await controller().signOut();
-      sync.pushes.clear();
+    test(
+      'is not handed to a different reader signing in on the same phone',
+      () async {
+        await readAsGuest();
+        await controller().submit(
+          mode: AccountMode.signIn,
+          email: 'first@example.com',
+          password: 'longenoughpassword',
+        );
+        await controller().signOut();
+        sync.pushes.clear();
 
-      auth.userId = 'reader-2';
-      await controller().submit(
-        mode: AccountMode.signIn,
-        email: 'second@example.com',
-        password: 'longenoughpassword',
-      );
+        auth.userId = 'reader-2';
+        await controller().submit(
+          mode: AccountMode.signIn,
+          email: 'second@example.com',
+          password: 'longenoughpassword',
+        );
 
-      // These books are not theirs to upload, and putting them in the wrong
-      // account is not something the reader could undo.
-      expect(sync.pushes, isEmpty);
-    });
+        // These books are not theirs to upload, and putting them in the wrong
+        // account is not something the reader could undo.
+        expect(sync.pushes, isEmpty);
+      },
+    );
   });
 
   group('signing out', () {
@@ -563,8 +591,9 @@ void main() {
       expect(find.text(l10n.settingsSignedOut), findsOneWidget);
     });
 
-    testWidgets('says how many changes are still waiting, not just "saved"',
-        (tester) async {
+    testWidgets('says how many changes are still waiting, not just "saved"', (
+      tester,
+    ) async {
       await controller().submit(
         mode: AccountMode.signIn,
         email: 'reader@example.com',
@@ -589,8 +618,10 @@ void main() {
       // Two rows queued and nothing sent yet. Saying "up to date" here would
       // be a claim the reader could only check by losing the work.
       expect(find.text(l10n.settingsSyncPending(2)), findsOneWidget);
-      expect(find.text(l10n.accountWelcome('reader@example.com')),
-          findsOneWidget);
+      expect(
+        find.text(l10n.accountWelcome('reader@example.com')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -646,8 +677,9 @@ void main() {
       expect(find.text(l10n.accountErrorCredentials), findsOneWidget);
     });
 
-    testWidgets('fits a narrow phone in Arabic, with the form open',
-        (tester) async {
+    testWidgets('fits a narrow phone in Arabic, with the form open', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -674,8 +706,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('switching to create an account keeps what was typed',
-        (tester) async {
+    testWidgets('switching to create an account keeps what was typed', (
+      tester,
+    ) async {
       await open(tester);
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 

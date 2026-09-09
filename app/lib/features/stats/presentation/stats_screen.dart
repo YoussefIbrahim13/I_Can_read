@@ -6,6 +6,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
 import '../../../core/widgets/kicker.dart';
+import '../../../core/widgets/reading_calendar_grid.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/stats_providers.dart';
@@ -74,6 +75,11 @@ class _Stats extends StatelessWidget {
         Kicker(l10n.statsPagesPerDay, color: Theme.of(context).appColors.muted),
         const SizedBox(height: AppSpacing.x3),
         _PagesChart(stats: stats),
+        const SizedBox(height: AppSpacing.x6 - 2),
+        // After the chart, not before it: the chart answers "how much am I
+        // reading", which is the question the screen is opened with, and the
+        // calendar answers the longer one underneath it.
+        const _ReadingCalendar(),
         if (stats.finished.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.x6 - 2),
           Kicker(
@@ -83,6 +89,50 @@ class _Stats extends StatelessWidget {
           const SizedBox(height: AppSpacing.x1),
           for (final book in stats.finished) _FinishedRow(book: book),
         ],
+      ],
+    );
+  }
+}
+
+/// Every book's reading days on one grid.
+///
+/// The same calendar the detail screen draws for a single book, measured
+/// against the sum of the portions the reader is committed to — so a full
+/// square here means a day they did everything they had set out to do, not just
+/// everything for one book.
+class _ReadingCalendar extends ConsumerWidget {
+  const _ReadingCalendar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Kicker(l10n.statsCalendar, color: theme.appColors.muted),
+        const SizedBox(height: AppSpacing.x3),
+        // Scrollable rather than shrunk to fit: fifteen weeks at a legible
+        // square is wider than a narrow phone, and squares small enough to
+        // always fit would stop being readable on every phone.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          reverse: true,
+          child: ReadingCalendarGrid(
+            columns: ref.watch(libraryCalendarProvider),
+            cell: 12,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.x2),
+        Text(
+          l10n.statsCalendarHint,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 11.5,
+            height: 1.6,
+            color: theme.appColors.muted,
+          ),
+        ),
       ],
     );
   }

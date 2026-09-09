@@ -4,11 +4,7 @@ import 'package:i_can_read/features/today/domain/today_agenda.dart';
 
 final _jan1 = DateTime(2026, 1, 1);
 
-PlanSpec plan({
-  int startPage = 1,
-  int endPage = 240,
-  int pagesPerDay = 15,
-}) {
+PlanSpec plan({int startPage = 1, int endPage = 240, int pagesPerDay = 15}) {
   return PlanSpec(
     mode: PlanMode.byPagesPerDay,
     startPage: startPage,
@@ -61,9 +57,10 @@ void main() {
       book(sessions: const [(8 * 60, 8), (20 * 60, 7)]),
     ]);
 
-    expect([
-      for (final e in agenda.entries) (e.fromPage, e.toPage),
-    ], [(1, 8), (9, 15)]);
+    expect(
+      [for (final e in agenda.entries) (e.fromPage, e.toPage)],
+      [(1, 8), (9, 15)],
+    );
   });
 
   test('the portion starts where the reader stood when the day began', () {
@@ -110,10 +107,7 @@ void main() {
 
   test('the last day of a book is short, and empties later sessions', () {
     final agenda = buildTodayAgenda([
-      book(
-        lastPageRead: 235,
-        sessions: const [(8 * 60, 8), (20 * 60, 7)],
-      ),
+      book(lastPageRead: 235, sessions: const [(8 * 60, 8), (20 * 60, 7)]),
     ]);
 
     expect(agenda.entries, hasLength(1));
@@ -147,9 +141,10 @@ void main() {
       ),
     ]);
 
-    expect([
-      for (final e in agenda.entries) e.title,
-    ], ['Kalila wa Dimna', 'The Muqaddimah']);
+    expect(
+      [for (final e in agenda.entries) e.title],
+      ['Kalila wa Dimna', 'The Muqaddimah'],
+    );
     expect(agenda.current?.title, 'Kalila wa Dimna');
     expect(agenda.later.single.title, 'The Muqaddimah');
     expect(agenda.bookCount, 2);

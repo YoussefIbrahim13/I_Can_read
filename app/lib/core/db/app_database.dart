@@ -593,6 +593,29 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Pages a day the reader is currently committed to, across every book.
+  ///
+  /// What a full day means for the library calendar. Only plans that owe
+  /// something today count: a finished book, a paused plan or a removed book
+  /// owes nothing, and counting them would make every day look like a shortfall
+  /// against a promise nobody made.
+  Stream<int> watchCommittedPagesPerDay() {
+    final total = readingPlans.pagesPerDay.sum();
+    final query =
+        selectOnly(
+            readingPlans,
+          ).join([innerJoin(books, books.id.equalsExp(readingPlans.bookId))])
+          ..addColumns([total])
+          ..where(
+            readingPlans.isActive.equals(true) &
+                readingPlans.pausedAt.isNull() &
+                books.status.equalsValue(BookStatus.reading) &
+                books.deletedAt.isNull(),
+          );
+
+    return query.watchSingle().map((row) => row.read(total) ?? 0);
+  }
+
   /// Pages read per calendar day from [from] onward, for one plan or for all.
   ///
   /// Keyed by the day rather than returned as rows, because both callers are
@@ -680,6 +703,37 @@ class AppDatabase extends _$AppDatabase {
         BooksCompanion(status: Value(status), updatedAt: Value(now)),
       );
       await _enqueueBook(bookId);
+    });
+  }
+
+  /// Removes a book from the library.
+  ///
+  /// A tombstone rather than a real delete, because the removal has to travel:
+  /// a row that simply vanished from this phone cannot be described in a push,
+  /// so the server would keep its copy and hand the book back on the next pull.
+  ///
+  /// The plan, its sessions and the reading log are left in place. They hang off
+  /// the book, and every query that drives a screen or a reminder already
+  /// filters on `books.deletedAt` — so the reminders stop on their own, through
+  /// the same stream that scheduled them, rather than through a second path
+  /// that could disagree with the first.
+  ///
+  /// What does go, immediately and completely, is everything device-local: the
+  /// file record and the saved reading position. The PDF itself is the caller's
+  /// to delete — this class does not own the filesystem.
+  Future<void> deleteBook(String bookId, DateTime now) {
+    return transaction(() async {
+      await (update(books)..where((b) => b.id.equals(bookId))).write(
+        BooksCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+      );
+      // Queued as a delete rather than an upsert: `_enqueueBook` reads the row
+      // back and sees the tombstone.
+      await _enqueueBook(bookId);
+
+      await (delete(
+        localBookFiles,
+      )..where((f) => f.bookId.equals(bookId))).go();
+      await (delete(readerStates)..where((s) => s.bookId.equals(bookId))).go();
     });
   }
 
@@ -872,6 +926,50 @@ class AppDatabase extends _$AppDatabase {
   /// before there was anywhere to send it, so the outbox is empty and the
   /// library would otherwise look, from the server's side, like a brand new
   /// and empty account.
+  /// Everything on this phone that is worth keeping, as one payload.
+  ///
+  /// Exactly what the account carries and nothing more: no PDFs, no local file
+  /// paths, no reading positions, no outbox. The same rule the sync follows,
+  /// for the same reason — the file is the reader's and never leaves the phone,
+  /// and where it happens to sit on *this* phone means nothing on the next one.
+  ///
+  /// Tombstones travel too. A backup that quietly resurrected every book the
+  /// reader had removed would be worse than no backup.
+  Future<SyncPayload> exportLocalData() async {
+    return SyncPayload(
+      books: [for (final row in await select(books).get()) bookDto(row)],
+      fingerprints: [
+        for (final row in await select(bookFingerprints).get())
+          fingerprintDto(row),
+      ],
+      plans: [for (final row in await select(readingPlans).get()) planDto(row)],
+      sessions: [
+        for (final row in await select(readingSessions).get()) sessionDto(row),
+      ],
+      logEntries: [
+        for (final row in await select(readingLog).get()) logEntryDto(row),
+      ],
+    );
+  }
+
+  /// Folds a backup into whatever is already here.
+  ///
+  /// A merge, not a replacement, and deliberately the same merge a pull from
+  /// the server uses: restoring onto a phone that has been read on since must
+  /// not throw that reading away. So progress takes the larger page, the log is
+  /// appended by id, and everything else is decided by which copy was edited
+  /// last.
+  ///
+  /// The order matters — a plan cannot be inserted before its book, and a
+  /// session cannot be inserted before its plan.
+  Future<void> importBackup(SyncPayload backup) async {
+    await mergeBooks(backup.books);
+    await mergeFingerprints(backup.fingerprints);
+    await mergePlans(backup.plans);
+    await mergeSessions(backup.sessions);
+    await mergeLogEntries(backup.logEntries);
+  }
+
   Future<void> seedOutboxFromLocalData() {
     return transaction(() async {
       for (final row in await select(books).get()) {

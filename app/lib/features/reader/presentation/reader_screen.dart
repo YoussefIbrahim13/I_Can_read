@@ -174,10 +174,7 @@ class _ReaderState extends ConsumerState<_Reader> {
       to: _portion.toPage,
       margin: params.margin,
     );
-    return PdfPageLayout(
-      pageLayouts: layout.rects,
-      documentSize: layout.size,
-    );
+    return PdfPageLayout(pageLayouts: layout.rects, documentSize: layout.size);
   }
 
   int? _currentPage(

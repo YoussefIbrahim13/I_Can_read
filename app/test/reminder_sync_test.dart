@@ -147,9 +147,9 @@ void main() {
     final container = open();
     await pumpEventQueue();
 
-    await container.read(appSettingsProvider.notifier).setLocale(
-      const Locale('ar'),
-    );
+    await container
+        .read(appSettingsProvider.notifier)
+        .setLocale(const Locale('ar'));
     container.read(reminderSyncProvider);
     await pumpEventQueue();
 
@@ -208,9 +208,10 @@ void main() {
 
     await pumpEventQueue();
 
-    expect([
-      for (final r in channel.latest) r.bookTitle,
-    ], ['Kalila wa Dimna', 'The Muqaddimah']);
+    expect(
+      [for (final r in channel.latest) r.bookTitle],
+      ['Kalila wa Dimna', 'The Muqaddimah'],
+    );
     expect({for (final r in channel.latest) r.id}, hasLength(2));
   });
 
@@ -223,7 +224,10 @@ void main() {
     });
 
     test('follows the platform when no choice was made', () {
-      expect(reminderLocale(null, const Locale('ar', 'EG')), const Locale('ar'));
+      expect(
+        reminderLocale(null, const Locale('ar', 'EG')),
+        const Locale('ar'),
+      );
     });
 
     test('falls back to a supported language', () {

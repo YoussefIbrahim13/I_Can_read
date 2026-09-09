@@ -117,6 +117,9 @@
   "@bookStartedOn": {
     "placeholders": { "date": { "type": "String" } }
   },
+  "bookDelete": "Remove this book",
+  "bookDeleteConfirm": "The book, its plan and its reminders go, on this phone and on your other devices. The PDF this app copied is deleted too — the file you originally chose is untouched.",
+  "bookDeleteYes": "Remove it",
   "bookOfTheBook": "of the book",
   "bookPlanSection": "The plan",
   "bookSessionCount": "{count, plural, =0{no set times} =1{1 session} other{{count} sessions}}",
@@ -227,6 +230,8 @@
   "statsFinishedCount": "books finished",
   "statsPagesPerDay": "Pages a day",
   "statsToday": "Today",
+  "statsCalendar": "The days you read",
+  "statsCalendarHint": "One square a day, across every book. The darker it is, the closer you came to the whole day's reading.",
   "statsFinishedSection": "Books you finished",
   "statsTookDays": "{count, plural, =1{1 day} other{{count} days}}",
   "@statsTookDays": {
@@ -341,6 +346,21 @@
   "settingsThemeDark": "Dark",
 
   "settingsAccount": "Account",
+  "settingsBackup": "Backup",
+  "settingsBackupHint": "Save your books, plans and reading history to a file you keep. The PDFs are not in it — they stay on this phone.",
+  "backupExport": "Save a backup",
+  "backupImport": "Restore from a backup",
+  "backupExported": "{count, plural, =1{Saved, with 1 item in it} other{Saved, with {count} items in it}}",
+  "@backupExported": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "backupImported": "{count, plural, =1{Restored 1 item} other{Restored {count} items}}",
+  "@backupImported": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "backupErrorNotABackup": "That file isn't a backup from this app.",
+  "backupErrorTooNew": "That backup was written by a newer version of the app. Update, then try again.",
+  "backupErrorFailed": "That didn't work. Nothing was changed.",
   "settingsSignedOut": "You're reading without an account.",
   "settingsSignedOutHint": "An account keeps your books, goals and progress if you change phone.",
   "settingsSignIn": "Sign in or create an account",
@@ -397,5 +417,20 @@
   "resetBackToSignIn": "Back to sign in",
   "resetErrorCode": "That code is not valid. Ask for a new one and try again.",
   "resetErrorTooMany": "Too many attempts. Wait a minute, then try again.",
-  "resetSpamHint": "Nothing arrived? Check your spam folder before asking for another code — the old one stops working the moment a new one is sent."
+  "resetSpamHint": "Nothing arrived? Check your spam folder before asking for another code — the old one stops working the moment a new one is sent.",
+
+  "deleteAccount": "Delete my account",
+  "deleteAccountTitle": "Delete your account",
+  "deleteAccountWhatGoes": "Your account and everything saved to it — your books, your plans, your reminders and everything you've read — are deleted from the server for good. This cannot be undone.",
+  "deleteAccountWhatStays": "The books on this phone stay where they are. Their PDFs were never on the server, and this library goes back to being what it was before you signed in — yours, on this device.",
+  "deleteAccountConfirmPassword": "Type your password to confirm",
+  "deleteAccountConfirmGoogle": "Confirm with Google",
+  "deleteAccountGoogleHint": "Signed in with Google? Confirm that way instead — there is no password to type.",
+  "deleteAccountSubmit": "Delete my account for good",
+  "deleteAccountWorking": "Deleting…",
+  "deleteAccountDone": "Your account is gone",
+  "deleteAccountDoneBody": "Nothing of it is left on the server. Your books are still on this phone.",
+  "deleteAccountErrorNotConfirmed": "That did not confirm the account is yours. Nothing was deleted.",
+  "deleteAccountErrorGoogle": "Google didn't confirm it. Nothing was deleted.",
+  "deleteAccountKeepMine": "Keep my account"
 }

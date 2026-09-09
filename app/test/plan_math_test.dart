@@ -541,7 +541,11 @@ void main() {
     });
 
     test('without the pause the same reader looks four days behind', () {
-      final status = scheduleStatus(_tenADay(), lastPageRead: 20, today: _jan(7));
+      final status = scheduleStatus(
+        _tenADay(),
+        lastPageRead: 20,
+        today: _jan(7),
+      );
 
       expect(status.expectedPages, 60);
       expect(status.deltaDays, -4);

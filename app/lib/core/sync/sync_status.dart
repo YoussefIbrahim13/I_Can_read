@@ -25,10 +25,7 @@ final class SyncFailed extends SyncStatus {
 
 /// A synchronization operation completed successfully.
 final class SyncComplete extends SyncStatus {
-  const SyncComplete({
-    required this.pushed,
-    required this.pulled,
-  });
+  const SyncComplete({required this.pushed, required this.pulled});
 
   /// Number of local changes pushed to the server.
   final int pushed;

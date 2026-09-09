@@ -6,8 +6,7 @@ import 'package:i_can_read/features/reader/domain/portion_layout.dart';
 const _margin = 8.0;
 
 /// Ten uniform pages, so any rectangle can be reasoned about by hand.
-List<Size> pages([int count = 10]) =>
-    List.filled(count, const Size(100, 200));
+List<Size> pages([int count = 10]) => List.filled(count, const Size(100, 200));
 
 PortionLayout layout({int from = 3, int to = 5, int count = 10}) =>
     portionLayout(pages: pages(count), from: from, to: to, margin: _margin);
@@ -70,7 +69,18 @@ void main() {
   });
 
   test('the whole book as a portion shows everything', () {
-    expect(visiblePages(layout(from: 1, to: 10)), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(visiblePages(layout(from: 1, to: 10)), [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+    ]);
   });
 
   test('a portion running past the end shows what exists', () {
@@ -81,7 +91,16 @@ void main() {
   test('a portion entirely past the end falls back to the whole book', () {
     // Better a confusing book than a blank screen the reader cannot explain.
     expect(visiblePages(layout(from: 40, to: 45)), [
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
     ]);
   });
 
@@ -122,9 +141,12 @@ void main() {
       expect(pageFor(const Rect.fromLTRB(0, 0, 100, 999999)), isIn([3, 4, 5]));
     });
 
-    test('falls back to the first page of the portion when nothing is shown', () {
-      expect(pageFor(Rect.zero), 3);
-    });
+    test(
+      'falls back to the first page of the portion when nothing is shown',
+      () {
+        expect(pageFor(Rect.zero), 3);
+      },
+    );
 
     test('straddling two pages picks the more visible one', () {
       // 60px of page 3 against 140px of page 4.

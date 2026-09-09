@@ -68,7 +68,7 @@ final class AccountSignedIn extends AccountState {
 ///
 /// Written the first time a reader signs in. It is what tells a guest library
 /// ("nobody has claimed this yet") apart from one that is already somebody's.
-const _dataOwnerKey = 'sync.dataOwner';
+const dataOwnerKey = 'sync.dataOwner';
 
 class AccountController extends Notifier<AccountState> {
   @override
@@ -184,11 +184,11 @@ class AccountController extends Notifier<AccountState> {
   /// reader's to upload, and the mistake would not be undoable.
   Future<void> _adoptLocalData(String userId) async {
     final prefs = ref.read(sharedPreferencesProvider);
-    final owner = prefs.getString(_dataOwnerKey);
+    final owner = prefs.getString(dataOwnerKey);
 
     if (owner == null) {
       await ref.read(appDatabaseProvider).seedOutboxFromLocalData();
-      await prefs.setString(_dataOwnerKey, userId);
+      await prefs.setString(dataOwnerKey, userId);
     }
 
     // Even when nothing was adopted this is worth doing: it is what pulls the

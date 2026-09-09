@@ -36,10 +36,7 @@ class AuthenticatedHttp {
     final token = await _validAccessToken();
     return _http.get(
       Uri.parse('$baseUrl$path'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     );
   }
 
@@ -48,10 +45,7 @@ class AuthenticatedHttp {
     final token = await _validAccessToken();
     return _http.post(
       Uri.parse('$baseUrl$path'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        ..._jsonHeaders,
-      },
+      headers: {'Authorization': 'Bearer $token', ..._jsonHeaders},
       body: jsonEncode(body),
     );
   }

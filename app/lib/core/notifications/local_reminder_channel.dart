@@ -103,7 +103,11 @@ class LocalReminderChannel implements ReminderChannel {
           IOSFlutterLocalNotificationsPlugin
         >();
     if (ios != null) {
-      return await ios.requestPermissions(alert: true, badge: true, sound: true) ??
+      return await ios.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
           false;
     }
     return false;
@@ -149,7 +153,10 @@ class LocalReminderChannel implements ReminderChannel {
   /// daylight-saving change moves the wall-clock time with the reader instead
   /// of dragging the reminder an hour off.
   @visibleForTesting
-  static tz.TZDateTime nextOccurrence(Reminder reminder, {tz.TZDateTime? from}) {
+  static tz.TZDateTime nextOccurrence(
+    Reminder reminder, {
+    tz.TZDateTime? from,
+  }) {
     final now = from ?? tz.TZDateTime.now(tz.local);
     var when = tz.TZDateTime(
       now.location,

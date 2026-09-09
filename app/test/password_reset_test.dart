@@ -61,8 +61,7 @@ void main() {
   PasswordResetController controller() =>
       container.read(passwordResetControllerProvider.notifier);
 
-  PasswordResetState state() =>
-      container.read(passwordResetControllerProvider);
+  PasswordResetState state() => container.read(passwordResetControllerProvider);
 
   group('asking for a code', () {
     test('a bad address never reaches the server', () async {
@@ -123,7 +122,10 @@ void main() {
     test('a short password is caught before the code is spent', () async {
       await reachCodeStep();
 
-      await controller().submitNewPassword(code: '123456', newPassword: 'short');
+      await controller().submitNewPassword(
+        code: '123456',
+        newPassword: 'short',
+      );
 
       // Nothing was sent, so the code the reader is holding is still good.
       expect(auth.passwordsReset, isEmpty);

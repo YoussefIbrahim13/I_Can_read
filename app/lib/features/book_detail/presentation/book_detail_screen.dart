@@ -10,6 +10,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
 import '../../../core/widgets/kicker.dart';
 import '../../../core/widgets/progress_shapes.dart';
+import '../../../core/widgets/reading_calendar_grid.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../plan/application/plan_providers.dart';
@@ -65,6 +66,8 @@ class BookDetailScreen extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.x4 + 2),
                         ],
                         _Actions(book: book, plan: plan),
+                        const SizedBox(height: AppSpacing.x4),
+                        _DeleteBook(bookId: bookId),
                       ],
                     ),
             ),
@@ -120,10 +123,7 @@ class _Masthead extends StatelessWidget {
                 ),
               const SizedBox(height: AppSpacing.x1),
               Text(
-                [
-                  l10n.bookPageCount(book.pageCount),
-                  ?started,
-                ].join(' · '),
+                [l10n.bookPageCount(book.pageCount), ?started].join(' · '),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 11.5,
                   color: theme.appColors.muted,
@@ -272,58 +272,17 @@ class _ReadingDays extends ConsumerWidget {
 
   final ReadingPlan plan;
 
-  static const _cell = 11.0;
-  static const _gap = 3.0;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final colors = theme.appColors;
-    final columns = ref.watch(bookHeatmapProvider(plan));
-
-    Color fill(HeatCell cell) {
-      if (cell.isEmpty) return colors.hairline;
-      // One ramp, gold. A day that met the portion is full strength; a day
-      // that fell short is the same colour, thinner — so the grid reads as
-      // "how much", never as pass and fail.
-      return colors.accentStroke.withValues(alpha: 0.3 + 0.7 * cell.intensity);
-    }
+    final colors = Theme.of(context).appColors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Kicker(l10n.bookReadingDays, color: colors.muted),
         const SizedBox(height: AppSpacing.x2 + 2),
-        // Always left-to-right, in both locales: the axis is time, and the
-        // grid's newest column has to stay under the reader's thumb rather
-        // than flip with the script.
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              for (final (index, column) in columns.indexed) ...[
-                if (index > 0) const SizedBox(width: _gap),
-                Column(
-                  children: [
-                    for (final (row, cell) in column.indexed) ...[
-                      if (row > 0) const SizedBox(height: _gap),
-                      Container(
-                        width: _cell,
-                        height: _cell,
-                        decoration: BoxDecoration(
-                          color: fill(cell),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
+        ReadingCalendarGrid(columns: ref.watch(bookHeatmapProvider(plan))),
       ],
     );
   }
@@ -410,6 +369,94 @@ class _Actions extends ConsumerWidget {
       // repeating it here would put the same button on screen twice.
       BookStatus.reading => const SizedBox.shrink(),
     };
+  }
+}
+
+/// Removing the book, in two taps.
+///
+/// The first tap does nothing but ask, and the second one is the only place in
+/// this screen that speaks in the error colour. Two taps rather than a
+/// confirmation dialog: the sentence explaining what is about to be lost is
+/// longer than a dialog would hold, and it belongs next to the button rather
+/// than on top of the screen it is about.
+class _DeleteBook extends ConsumerStatefulWidget {
+  const _DeleteBook({required this.bookId});
+
+  final String bookId;
+
+  @override
+  ConsumerState<_DeleteBook> createState() => _DeleteBookState();
+}
+
+class _DeleteBookState extends ConsumerState<_DeleteBook> {
+  var _asking = false;
+  var _busy = false;
+
+  Future<void> _delete() async {
+    setState(() => _busy = true);
+    await ref.read(bookActionsProvider).delete(widget.bookId);
+
+    // Back to the shelf. Staying would leave the reader looking at a screen
+    // about a book that no longer exists.
+    //
+    // `maybePop`, the same way the back arrow leaves: it asks the navigator
+    // rather than the router, so it is right whether this screen was pushed
+    // from the library, from today, or from a tapped reminder.
+    if (mounted) await Navigator.of(context).maybePop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    if (!_asking) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton(
+          onPressed: () => setState(() => _asking = true),
+          style: TextButton.styleFrom(foregroundColor: theme.appColors.muted),
+          child: Text(l10n.bookDelete),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.bookDeleteConfirm,
+          style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.7,
+            color: theme.appColors.muted,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.x2),
+        _ActionRow(
+          children: [
+            OutlinedButton(
+              onPressed: _busy ? null : _delete,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x1),
+                textStyle: theme.textTheme.labelLarge?.copyWith(fontSize: 13),
+                foregroundColor: theme.colorScheme.error,
+                side: BorderSide(color: theme.colorScheme.error),
+              ),
+              child: Text(
+                l10n.bookDeleteYes,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            _Action(
+              label: l10n.actionCancel,
+              onPressed: _busy ? () {} : () => setState(() => _asking = false),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

@@ -103,15 +103,46 @@ public class AuthController(
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public class MeController(AppDbContext db) : ControllerBase
+public class MeController(AppDbContext db, AccountDeletionService deletion)
+    : ControllerBase
 {
+    /// <summary>
+    /// Closes the caller's account and deletes everything it holds.
+    /// </summary>
+    /// <remarks>
+    /// A POST rather than <c>DELETE /api/me</c>: the confirmation travels in the
+    /// body, and a request body on DELETE is something proxies and HTTP clients
+    /// are entitled to drop.
+    /// </remarks>
+    [HttpPost("delete")]
+    // Under the auth limit too. It takes a password, so it is a place guessing
+    // could pay, and it is the one call in the app that cannot be undone.
+    [EnableRateLimiting(AuthRateLimit.Policy)]
+    public async Task<IActionResult> Delete(
+        DeleteAccountRequest request,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        var outcome = await deletion.DeleteAsync(userId, request, ct);
+
+        return outcome switch
+        {
+            AccountDeletionOutcome.Deleted => NoContent(),
+            // Already gone, which is the state the caller was asking for. The
+            // token outliving the account is not the reader's problem.
+            AccountDeletionOutcome.NotFound => NoContent(),
+            _ => Unauthorized(new ProblemDetails
+            {
+                Title = "That did not confirm the account is yours."
+            })
+        };
+    }
+
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        // From the token, never from the request body — the one rule that keeps
-        // a caller from reading somebody else's account.
-        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(id, out var userId)) return Unauthorized();
+        if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var user = await db.Users
             .Where(u => u.Id == userId)
@@ -120,4 +151,11 @@ public class MeController(AppDbContext db) : ControllerBase
 
         return user is null ? Unauthorized() : Ok(user);
     }
+
+    /// <summary>
+    /// The account id, taken from the token and never from the request — the
+    /// one rule that keeps a caller out of somebody else's account.
+    /// </summary>
+    private bool TryGetUserId(out Guid userId) =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
 }

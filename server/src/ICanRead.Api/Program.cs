@@ -53,15 +53,14 @@ builder.Services.AddOptions<GoogleOptions>()
         + "and must never be set on a deployed server.")
     .ValidateOnStart();
 
-builder.Services.AddOptions<SendGridOptions>()
-    .Bind(builder.Configuration.GetSection(SendGridOptions.Section))
+builder.Services.AddOptions<EmailOptions>()
+    .Bind(builder.Configuration.GetSection(EmailOptions.Section))
     // A deployed server that cannot send mail cannot reset a password, and a
     // reader who cannot reset a password has lost their library. Missing
     // configuration fails at boot rather than at the moment somebody needs it.
-    .Validate(o => isDevelopment || !string.IsNullOrWhiteSpace(o.ApiKey),
-        "SendGrid:ApiKey is required outside Development.")
-    .Validate(o => isDevelopment || !string.IsNullOrWhiteSpace(o.FromAddress),
-        "SendGrid:FromAddress is required outside Development.")
+    .Validate(o => isDevelopment || o.IsConfigured,
+        "EmailSettings needs SmtpServer, SenderEmail and Password outside "
+        + "Development.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton(TimeProvider.System);
@@ -69,26 +68,23 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PasswordResetService>();
+builder.Services.AddScoped<AccountDeletionService>();
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
 
-// Development without a key still gets a working reset flow — the code goes to
-// the console. Outside Development the options validation above has already
-// refused to boot, so this branch cannot be reached there.
-if (string.IsNullOrWhiteSpace(builder.Configuration[$"{SendGridOptions.Section}:ApiKey"]))
+// Development without an SMTP account still gets a working reset flow — the
+// code goes to the console. Outside Development the validation above has
+// already refused to boot, so the fallback cannot be reached there.
+//
+// Chosen per request rather than once at startup, so configuration a host
+// layers on afterwards — which is what the test host does — still decides.
+builder.Services.AddScoped<IEmailSender>(services =>
 {
-    builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
-}
-else
-{
-    builder.Services.AddHttpClient<IEmailSender, SendGridEmailSender>(client =>
-    {
-        client.BaseAddress = new Uri("https://api.sendgrid.com/");
-        // Mail is sent inside a request the reader is waiting on, so a provider
-        // having a slow day must not hold that request open indefinitely.
-        client.Timeout = TimeSpan.FromSeconds(10);
-    });
-}
+    var email = services.GetRequiredService<IOptions<EmailOptions>>();
+    return email.Value.IsConfigured
+        ? new SmtpEmailSender(email, services.GetRequiredService<ILogger<SmtpEmailSender>>())
+        : new LoggingEmailSender(services.GetRequiredService<ILogger<LoggingEmailSender>>());
+});
 
 // Rate limiting, on the endpoints where guessing pays: sign-in, and the reset
 // code. Keyed by remote address rather than by account — the account is exactly

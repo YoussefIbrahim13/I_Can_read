@@ -1,0 +1,347 @@
+<!doctype html>
+<!--
+  The privacy policy, in the two languages the app speaks.
+
+  Google Play requires a publicly reachable URL for this before the listing can
+  go live. GitHub Pages serves it as-is: enable Pages on this repository with
+  `main` / `docs`, and the URL becomes
+  https://<user>.github.io/<repo>/privacy-policy.html
+
+  Two things must be filled in before it is published — both marked FILL IN
+  below: the contact address and the publisher's name. A policy that names
+  nobody to write to is not a policy Play accepts.
+
+  Keep this file honest. Every claim in it is checkable against the code, and
+  the one that matters most — that the PDF never leaves the phone — is enforced
+  in `BookFileStore`, in `android:allowBackup="false"`, and by the fact that no
+  endpoint on the server accepts a file at all.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yaqra — Privacy Policy · سياسة الخصوصية</title>
+<style>
+  :root {
+    --ink: #201f1d;
+    --muted: #6b665f;
+    --gold: #b68235;
+    --paper: #f8f4f4;
+    --hairline: #e2dcd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #ece7e1;
+      --muted: #9a938a;
+      --paper: #161514;
+      --hairline: #322f2b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.5rem 1.25rem 5rem;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.75;
+  }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 .25rem; }
+  h2 {
+    font-size: 1.25rem;
+    margin: 2.5rem 0 .5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+  h3 { font-size: 1rem; margin: 1.5rem 0 .25rem; }
+  .kicker {
+    font-family: system-ui, sans-serif;
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 1.5rem;
+  }
+  .lead { font-size: 1.05rem; }
+  .muted { color: var(--muted); font-size: .92rem; }
+  ul { padding-inline-start: 1.25rem; }
+  li { margin: .35rem 0; }
+  a { color: var(--gold); }
+  hr { border: 0; border-top: 1px solid var(--hairline); margin: 4rem 0; }
+  section[dir="rtl"] {
+    font-family: "Noto Naskh Arabic", "Segoe UI", Tahoma, sans-serif;
+    text-align: right;
+  }
+  section[dir="rtl"] .kicker { letter-spacing: 0; }
+</style>
+</head>
+<body>
+<main>
+
+<!-- ───────────────────────────── English ───────────────────────────── -->
+<section dir="ltr" lang="en">
+  <p class="kicker">Yaqra · Privacy Policy</p>
+  <h1>Your books stay on your phone.</h1>
+  <p class="lead">
+    Yaqra turns a PDF into a reading plan and reminds you to keep to it. This
+    page says exactly what it stores, what it sends, and what it never touches.
+  </p>
+  <p class="muted">Last updated: 9 September 2026.</p>
+
+  <h2>The short version</h2>
+  <ul>
+    <li><strong>Your PDF files are never uploaded.</strong> Not to us, not to
+      anyone. They are copied into the app's own storage on your device and
+      stay there.</li>
+    <li><strong>You can use the whole app without an account.</strong> If you
+      never sign in, nothing at all leaves your phone.</li>
+    <li><strong>There is no advertising, no analytics, and no tracking.</strong>
+      Nothing you read is profiled, and nothing is sold or shared for
+      marketing.</li>
+    <li><strong>You can take your data out, and you can delete it,</strong> both
+      from inside the app.</li>
+  </ul>
+
+  <h2>What is stored on your device</h2>
+  <p>
+    Whether or not you have an account, the app keeps the following on the phone
+    itself:
+  </p>
+  <ul>
+    <li>A copy of each PDF you add, in the app's private storage.</li>
+    <li>Where that copy sits, and the page you last had open.</li>
+    <li>Your books, plans, reminder times and reading history.</li>
+    <li>Your language and theme preferences.</li>
+  </ul>
+  <p>
+    Android's automatic cloud backup is switched <strong>off</strong> for this
+    app, and on iOS the books folder is excluded from iCloud. That is deliberate:
+    those backups would have uploaded your PDFs. Uninstalling the app therefore
+    removes this data — see <em>Taking your data with you</em> below.
+  </p>
+
+  <h2>What is sent to the server, if you create an account</h2>
+  <p>
+    An account exists for one reason: so a new phone can pick up where the old
+    one left off. Creating one is optional. If you do, these are synced:
+  </p>
+  <ul>
+    <li><strong>Your account:</strong> email address, a hash of your password
+      (never the password itself), an optional display name, and — if you sign
+      in with Google — the account identifier Google gives us.</li>
+    <li><strong>Your books, as records:</strong> title, author, page count and
+      status. Not the file.</li>
+    <li><strong>A fingerprint of each file:</strong> a SHA-256 checksum, the
+      page count, the file size, and the file's name. The checksum is what lets
+      a new phone recognise the same book when you point it at the PDF again.
+      The file's contents are not derivable from it.</li>
+    <li><strong>Your plans and reminder times.</strong></li>
+    <li><strong>Your reading history:</strong> which pages you read, on which
+      day, and how long the sitting lasted.</li>
+  </ul>
+  <p>
+    That is the complete list. There is no endpoint on the server that accepts a
+    file, so a PDF cannot reach it even by accident.
+  </p>
+
+  <h2>Others who are involved</h2>
+  <ul>
+    <li><strong>Google Sign-In</strong> — only if you choose it. Google tells us
+      your email address, your name, and a stable identifier for your account,
+      and Google's own privacy policy covers what they do with the sign-in.</li>
+    <li><strong>An email provider</strong> — used for one thing: sending the
+      six-digit code when you ask to reset a password. Your address is handed
+      to it only at that moment.</li>
+    <li><strong>Hosting</strong> — the server that stores the data above runs on
+      rented infrastructure. The provider can technically reach the disk, as
+      with any hosted service.</li>
+  </ul>
+  <p>Nobody else. No advertising networks and no analytics services.</p>
+
+  <h2>Notifications</h2>
+  <p>
+    Reminders are scheduled by your phone, locally. Nothing is sent through a
+    push service, so your reading times are not visible to us or to anyone else.
+  </p>
+
+  <h2>Taking your data with you</h2>
+  <p>
+    <em>Settings → Backup → Save a backup</em> writes your books, plans and
+    reading history to a file you choose where to put. The PDFs are not in it.
+    The same screen restores one.
+  </p>
+
+  <h2>Deleting your data</h2>
+  <ul>
+    <li><strong>Your account:</strong> <em>Settings → Account → Delete my
+      account</em>. This removes the account and everything listed above from
+      the server, for good. It cannot be undone. The books on your phone are
+      left alone — they are yours, and they were never on the server.</li>
+    <li><strong>Everything on the phone:</strong> uninstall the app, or remove
+      books one at a time from a book's own screen.</li>
+  </ul>
+  <p>
+    Deleted account data is removed immediately rather than kept for a grace
+    period. Backups of the server database may retain it for a short period
+    before they roll over.
+  </p>
+
+  <h2>How long it is kept</h2>
+  <p>
+    For as long as the account exists. Password reset codes expire after fifteen
+    minutes. Sign-in tokens expire and are replaced as you use the app, and all
+    of them are revoked when you sign out, reset your password, or delete the
+    account.
+  </p>
+
+  <h2>Children</h2>
+  <p>
+    Yaqra is not directed at children under 13, and we do not knowingly collect
+    anything from them.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If what the app collects ever changes, this page changes with it and the
+    date at the top moves.
+  </p>
+
+  <h2>Getting in touch</h2>
+  <p>
+    Questions about any of the above, or a request about your data:
+    <a href="mailto:FILL-IN@example.com">FILL-IN@example.com</a>.
+  </p>
+  <p class="muted">Published by FILL IN — PUBLISHER NAME.</p>
+</section>
+
+<hr>
+
+<!-- ───────────────────────────── العربية ───────────────────────────── -->
+<section dir="rtl" lang="ar">
+  <p class="kicker">يقرأ · سياسة الخصوصية</p>
+  <h1>كتبك بتفضل على موبايلك.</h1>
+  <p class="lead">
+    «يقرأ» بيحوّل ملف PDF لخطة قراءة ويفكّرك بيها. الصفحة دي بتقول بالظبط إيه
+    اللي بيتخزّن، وإيه اللي بيتبعت، وإيه اللي مش بنلمسه أصلاً.
+  </p>
+  <p class="muted">آخر تحديث: ٩ سبتمبر ٢٠٢٦.</p>
+
+  <h2>باختصار</h2>
+  <ul>
+    <li><strong>ملفات الـ PDF بتاعتك عمرها ما بتترفع.</strong> لا لينا ولا لحد
+      تاني. بتتنسخ في مساحة التطبيق الخاصة على جهازك وبتفضل فيها.</li>
+    <li><strong>تقدر تستخدم التطبيق كله من غير حساب.</strong> ولو عمرك ما سجّلت
+      دخول، مفيش أي حاجة بتخرج من موبايلك.</li>
+    <li><strong>مفيش إعلانات ولا تحليلات ولا تتبّع.</strong> اللي بتقراه ما
+      بيتعملّهوش ملف اهتمامات، ومفيش حاجة بتتباع أو بتتشارك لأغراض تسويق.</li>
+    <li><strong>تقدر تطلّع بياناتك، وتقدر تمسحها،</strong> والاتنين من جوّه
+      التطبيق.</li>
+  </ul>
+
+  <h2>اللي بيتخزّن على جهازك</h2>
+  <p>سواء عندك حساب أو لأ، التطبيق بيحتفظ بالآتي على الموبايل نفسه:</p>
+  <ul>
+    <li>نسخة من كل ملف PDF بتضيفه، في مساحة التطبيق الخاصة.</li>
+    <li>مكان النسخة دي، وآخر صفحة كنت فاتحها.</li>
+    <li>كتبك وخططك ومواعيد تذكيراتك وتاريخ قراءتك.</li>
+    <li>اختياراتك للغة والثيم.</li>
+  </ul>
+  <p>
+    النسخ الاحتياطي السحابي التلقائي بتاع أندرويد <strong>مقفول</strong> للتطبيق
+    ده، وعلى iOS مجلد الكتب مستثنى من iCloud. وده مقصود: النسخ دي كانت هترفع
+    ملفات الـ PDF بتاعتك. يعني إلغاء تثبيت التطبيق بيمسح البيانات دي — شوف
+    «تطلّع بياناتك معاك» تحت.
+  </p>
+
+  <h2>اللي بيتبعت للسيرفر لو عملت حساب</h2>
+  <p>
+    الحساب موجود لسبب واحد: إن موبايل جديد يكمّل من حيث وقف القديم. وعمله
+    اختياري. لو عملته، ده اللي بيتزامن:
+  </p>
+  <ul>
+    <li><strong>حسابك:</strong> الإيميل، وبصمة مشفّرة لكلمة السر (مش كلمة السر
+      نفسها)، واسم اختياري، ولو دخلت بجوجل: المعرّف اللي جوجل بتديهولنا.</li>
+    <li><strong>كتبك كبيانات:</strong> العنوان والمؤلف وعدد الصفحات والحالة. مش
+      الملف.</li>
+    <li><strong>بصمة لكل ملف:</strong> مجموع تحقّق SHA-256، وعدد الصفحات، وحجم
+      الملف، واسمه. المجموع ده هو اللي بيخلّي موبايل جديد يتعرّف على نفس الكتاب
+      لما تدلّه على الملف تاني. ومحتوى الملف ما ينفعش يتستنتج منه.</li>
+    <li><strong>خططك ومواعيد جلساتك.</strong></li>
+    <li><strong>تاريخ قراءتك:</strong> الصفحات اللي قريتها، في أنهي يوم، والجلسة
+      قعدت قد إيه.</li>
+  </ul>
+  <p>
+    دي القايمة كاملة. ومفيش أي نقطة نهاية على السيرفر بتقبل ملف أصلاً، فالـ PDF
+    ما ينفعش يوصله حتى بالغلط.
+  </p>
+
+  <h2>أطراف تانية</h2>
+  <ul>
+    <li><strong>الدخول بجوجل</strong> — بس لو اخترته. جوجل بتقول لنا إيميلك
+      واسمك ومعرّف ثابت لحسابك، وسياسة خصوصية جوجل هي اللي بتغطّي تعاملهم مع
+      عملية الدخول.</li>
+    <li><strong>مزوّد بريد</strong> — لحاجة واحدة: إرسال الكود المكوّن من ٦ أرقام
+      لما تطلب تغيير كلمة السر. إيميلك بيتسلّم له في اللحظة دي بس.</li>
+    <li><strong>الاستضافة</strong> — السيرفر اللي بيخزّن البيانات اللي فوق شغّال
+      على بنية تحتية مستأجرة، ومزوّدها تقنياً بيقدر يوصل للقرص، زي أي خدمة
+      مستضافة.</li>
+  </ul>
+  <p>مفيش حد تاني. لا شبكات إعلانات ولا خدمات تحليلات.</p>
+
+  <h2>الإشعارات</h2>
+  <p>
+    التذكيرات بيجدولها موبايلك محلياً. مفيش حاجة بتمر بخدمة إشعارات، فمواعيد
+    قراءتك مش ظاهرة لينا ولا لغيرنا.
+  </p>
+
+  <h2>تطلّع بياناتك معاك</h2>
+  <p>
+    <em>الإعدادات ← نسخة احتياطية ← احفظ نسخة</em> بتكتب كتبك وخططك وتاريخ
+    قراءتك في ملف إنت اللي بتختار تحطه فين. ملفات الـ PDF مش فيه. ونفس الشاشة
+    بترجّع النسخة.
+  </p>
+
+  <h2>حذف بياناتك</h2>
+  <ul>
+    <li><strong>حسابك:</strong> <em>الإعدادات ← الحساب ← احذف حسابي</em>. ده
+      بيمسح الحساب وكل اللي فوق من على السيرفر نهائياً، ومفيش رجوع فيه. والكتب
+      اللي على موبايلك بتفضل زي ما هي — بتاعتك، وعمرها ما كانت على السيرفر.</li>
+    <li><strong>كل حاجة على الموبايل:</strong> امسح التطبيق، أو شيل الكتب واحد
+      واحد من شاشة كل كتاب.</li>
+  </ul>
+  <p>
+    بيانات الحساب المحذوف بتتمسح فوراً مش بعد فترة سماح. ونسخ قاعدة بيانات
+    السيرفر الاحتياطية ممكن تفضل محتفظة بيها فترة قصيرة لحد ما تتجدّد.
+  </p>
+
+  <h2>مدة الاحتفاظ</h2>
+  <p>
+    طول ما الحساب موجود. أكواد تغيير كلمة السر بتنتهي بعد ربع ساعة. ورموز الدخول
+    بتنتهي وبتتجدّد وإنت بتستخدم التطبيق، وكلها بتتلغي لما تسجّل خروج أو تغيّر
+    كلمة السر أو تحذف الحساب.
+  </p>
+
+  <h2>الأطفال</h2>
+  <p>
+    «يقرأ» مش موجّه لأطفال تحت ١٣ سنة، وإحنا ما بنجمعش عن قصد أي حاجة منهم.
+  </p>
+
+  <h2>تغييرات على السياسة دي</h2>
+  <p>
+    لو اللي التطبيق بيجمعه اتغيّر، الصفحة دي هتتغيّر معاه والتاريخ اللي فوق
+    هيتحرّك.
+  </p>
+
+  <h2>للتواصل</h2>
+  <p>
+    أي سؤال عن اللي فوق، أو طلب بخصوص بياناتك:
+    <a href="mailto:FILL-IN@example.com">FILL-IN@example.com</a>.
+  </p>
+  <p class="muted">النشر بواسطة: FILL IN — اسم الناشر.</p>
+</section>
+
+</main>
+</body>
+</html>

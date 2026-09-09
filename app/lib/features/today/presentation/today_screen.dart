@@ -110,7 +110,9 @@ class _HeroSession extends StatelessWidget {
         // Half-strength gold: the card is the subject, but a full stroke around
         // something this large stops reading as an accent and starts reading as
         // a warning.
-        border: Border.all(color: theme.appColors.accentStroke.withValues(alpha: .5)),
+        border: Border.all(
+          color: theme.appColors.accentStroke.withValues(alpha: .5),
+        ),
         borderRadius: BorderRadius.circular(AppSpacing.radius),
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),

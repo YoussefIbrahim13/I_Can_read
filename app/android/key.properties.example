@@ -1,0 +1,22 @@
+# Copy to `key.properties` in this same folder and fill it in. That file is
+# gitignored and must stay that way.
+#
+# Create the keystore first, from the `android/` folder:
+#
+#   keytool -genkey -v -keystore upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Then back up `upload-keystore.jks` and its passwords somewhere you will still
+# have them in five years. If the keystore is lost, this app can never be
+# updated again on the same Play listing — there is no recovery for it, and no
+# support ticket that undoes it.
+
+# The alias given to -alias above.
+keyAlias=upload
+
+# The two passwords keytool asked for. They may be the same.
+keyPassword=
+storePassword=
+
+# Path to the keystore, relative to the `android/` folder.
+storeFile=upload-keystore.jks

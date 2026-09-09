@@ -7,6 +7,8 @@ import '../../../core/settings/app_settings.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../account/application/account_controller.dart';
+import '../../backup/application/backup_controller.dart';
+import '../../backup/domain/backup_file.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/kicker.dart';
@@ -94,12 +96,70 @@ class SettingsScreen extends ConsumerWidget {
                   Kicker(l10n.settingsAccount),
                   const SizedBox(height: 11),
                   const AccountSection(),
+                  const SizedBox(height: AppSpacing.x6 - 4),
+                  Kicker(l10n.settingsBackup),
+                  const SizedBox(height: 11),
+                  const _BackupSection(),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Writing the library out to a file, and reading one back in.
+///
+/// Not the same thing as the account, and sits apart from it on purpose: a
+/// reader with no account has no other way out of this app, and a reader with
+/// one may still want a copy that does not depend on a server being up.
+class _BackupSection extends ConsumerWidget {
+  const _BackupSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final state = ref.watch(backupControllerProvider);
+    final controller = ref.read(backupControllerProvider.notifier);
+    final busy = state is BackupWorking;
+
+    final note = switch (state) {
+      BackupWorking() => l10n.settingsSyncing,
+      BackupExported(:final items) => l10n.backupExported(items),
+      BackupImported(:final items) => l10n.backupImported(items),
+      BackupFailed(problem: BackupProblem.tooNew) => l10n.backupErrorTooNew,
+      BackupFailed(problem: BackupProblem.notABackup) =>
+        l10n.backupErrorNotABackup,
+      BackupFailed() => l10n.backupErrorFailed,
+      BackupIdle() => l10n.settingsBackupHint,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          note,
+          style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.6,
+            color: state is BackupFailed
+                ? theme.colorScheme.error
+                : theme.appColors.muted,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.x3),
+        OutlinedButton(
+          onPressed: busy ? null : controller.export,
+          child: Text(l10n.backupExport),
+        ),
+        const SizedBox(height: AppSpacing.x2),
+        TextButton(
+          onPressed: busy ? null : controller.import,
+          child: Text(l10n.backupImport),
+        ),
+      ],
     );
   }
 }
@@ -178,6 +238,17 @@ class AccountSection extends ConsumerWidget {
           onPressed: () =>
               ref.read(accountControllerProvider.notifier).signOut(),
           child: Text(l10n.settingsSignOut),
+        ),
+        // Last, and set apart from signing out: the two read as neighbours if
+        // they sit together, and one of them cannot be undone.
+        const SizedBox(height: AppSpacing.x2),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            onPressed: () => context.push('/account/delete'),
+            style: TextButton.styleFrom(foregroundColor: theme.appColors.muted),
+            child: Text(l10n.deleteAccount),
+          ),
         ),
       ],
     );

@@ -11,11 +11,13 @@ void expectBalanced(SessionPlan plan) {
   expect(plan.isBalanced, isTrue);
 }
 
-List<int> pagesOf(SessionPlan plan) =>
-    [for (final slot in plan.slots) slot.pages];
+List<int> pagesOf(SessionPlan plan) => [
+  for (final slot in plan.slots) slot.pages,
+];
 
-List<int> timesOf(SessionPlan plan) =>
-    [for (final slot in plan.slots) slot.minutes];
+List<int> timesOf(SessionPlan plan) => [
+  for (final slot in plan.slots) slot.minutes,
+];
 
 void main() {
   group('a new plan', () {
@@ -49,18 +51,17 @@ void main() {
     });
 
     test('sessions stay in time order however they were added', () {
-      final plan = SessionPlan.single(12, minutes: 21 * 60)
-          .added(minutes: 7 * 60)
-          .added(minutes: 13 * 60);
+      final plan = SessionPlan.single(
+        12,
+        minutes: 21 * 60,
+      ).added(minutes: 7 * 60).added(minutes: 13 * 60);
 
       expect(timesOf(plan), [7 * 60, 13 * 60, 21 * 60]);
       expect(pagesOf(plan), [4, 4, 4]);
     });
 
     test('removing gives the freed pages back to the rest', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .removedAt(0);
+      final plan = SessionPlan.single(15).added(minutes: 8 * 60).removedAt(0);
 
       expect(plan.slots, hasLength(1));
       expect(pagesOf(plan), [15]);
@@ -81,46 +82,45 @@ void main() {
 
   group('re-sharing', () {
     test('pages taken by one session come out of the last one', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .withPagesAt(0, 11);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).withPagesAt(0, 11);
 
       expect(pagesOf(plan), [11, 4]);
       expectBalanced(plan);
     });
 
     test('pages given back go to the last session too', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .withPagesAt(0, 2);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).withPagesAt(0, 2);
 
       expect(pagesOf(plan), [2, 13]);
       expectBalanced(plan);
     });
 
     test('drains later sessions in turn when one takes everything', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .added(minutes: 12 * 60)
-          .withPagesAt(0, 15);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).added(minutes: 12 * 60).withPagesAt(0, 15);
 
       expect(pagesOf(plan), [15, 0, 0]);
       expectBalanced(plan);
     });
 
     test('cannot be pushed past the daily portion', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .withPagesAt(0, 99);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).withPagesAt(0, 99);
 
       expect(pagesOf(plan), [15, 0]);
       expectBalanced(plan);
     });
 
     test('cannot go below zero', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .withPagesAt(0, -4);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).withPagesAt(0, -4);
 
       expect(pagesOf(plan), [0, 15]);
       expectBalanced(plan);
@@ -140,9 +140,9 @@ void main() {
 
   group('moving a session', () {
     test('re-sorts the day and keeps each share with its time', () {
-      final plan = SessionPlan.single(15)
-          .added(minutes: 8 * 60)
-          .withTimeAt(0, 22 * 60);
+      final plan = SessionPlan.single(
+        15,
+      ).added(minutes: 8 * 60).withTimeAt(0, 22 * 60);
 
       // The 8-page morning session became the 22:00 one, so it sorts last.
       expect(timesOf(plan), [20 * 60, 22 * 60]);

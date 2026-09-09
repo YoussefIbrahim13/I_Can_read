@@ -1,20 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
+import '../../../core/files/book_file_store.dart';
 import '../../../core/planning/plan_math.dart';
 import '../../sessions/application/sessions_providers.dart';
 import '../../today/application/today_providers.dart';
 import '../domain/book_progress.dart';
 
 /// Pages read today for one plan, to credit against today's portion.
-final _pagesReadTodayProvider = StreamProvider.autoDispose
-    .family<int, String>((ref, planId) {
-      final today = ref.watch(todayProvider);
-      return ref
-          .watch(appDatabaseProvider)
-          .watchPagesReadOn(today)
-          .map((byPlan) => byPlan[planId] ?? 0);
-    });
+final _pagesReadTodayProvider = StreamProvider.autoDispose.family<int, String>((
+  ref,
+  planId,
+) {
+  final today = ref.watch(todayProvider);
+  return ref
+      .watch(appDatabaseProvider)
+      .watchPagesReadOn(today)
+      .map((byPlan) => byPlan[planId] ?? 0);
+});
 
 /// A plan's reading history, over the window the calendar draws.
 final _dailyPagesProvider = StreamProvider.autoDispose
@@ -80,14 +83,16 @@ final bookHeatmapProvider = Provider.autoDispose
       );
     });
 
-/// The three things the detail screen can do to a book.
+/// The things the detail screen can do to a book.
 ///
 /// Thin over the database for the same reason [PlanWriter] is: the rules live
-/// in `app_database.dart`, and all that is left here is supplying the clock.
+/// in `app_database.dart`, and all that is left here is supplying the clock —
+/// and, for a removal, the file the database does not own.
 class BookActions {
-  const BookActions(this._db);
+  const BookActions(this._db, this._files);
 
   final AppDatabase _db;
+  final BookFileStore _files;
 
   Future<void> pause(String planId) => _db.pausePlan(planId, DateTime.now());
 
@@ -95,8 +100,26 @@ class BookActions {
 
   Future<void> setStatus(String bookId, BookStatus status) =>
       _db.setBookStatus(bookId, status, DateTime.now());
+
+  /// Removes a book, and the copy of its PDF this app made.
+  ///
+  /// The file goes first. If it went second, a delete that failed halfway would
+  /// leave a book nobody can see holding on to a couple of hundred megabytes
+  /// the reader has no way left to reclaim.
+  ///
+  /// Only our own copy is touched: whatever the reader originally picked the
+  /// file from is theirs and is somewhere else entirely.
+  Future<void> delete(String bookId) async {
+    final relativePath = await _db.localFilePath(bookId);
+    if (relativePath != null) await _files.delete(relativePath);
+
+    await _db.deleteBook(bookId, DateTime.now());
+  }
 }
 
 final bookActionsProvider = Provider<BookActions>((ref) {
-  return BookActions(ref.watch(appDatabaseProvider));
+  return BookActions(
+    ref.watch(appDatabaseProvider),
+    ref.watch(bookFileStoreProvider),
+  );
 });

@@ -55,10 +55,9 @@ class SyncClient implements SyncApi {
   /// New-device relink: "I have this file — do I already own the book?"
   @override
   Future<BookDto?> lookupByHash(String sha256) async {
-    final response = await http.post(
-      '/api/books/lookup-by-hash',
-      {'sha256': sha256},
-    );
+    final response = await http.post('/api/books/lookup-by-hash', {
+      'sha256': sha256,
+    });
     _assertOk(response.statusCode, response.body);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return LookupByHashResponse.fromJson(json).book;

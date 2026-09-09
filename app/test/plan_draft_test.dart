@@ -160,9 +160,7 @@ void main() {
     });
 
     test('a deadline before the start date is reported, not thrown', () {
-      final draft = _draft().copyWith(
-        targetEndDate: DateTime(2026, 10, 11),
-      );
+      final draft = _draft().copyWith(targetEndDate: DateTime(2026, 10, 11));
 
       expect(draft.problem, PlanDraftProblem.targetDateBeforeStart);
       expect(draft.spec, isNull);

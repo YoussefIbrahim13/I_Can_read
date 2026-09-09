@@ -8,6 +8,10 @@ library;
 
 import '../../../core/planning/plan_math.dart';
 
+// The calendar moved to core once the stats screen started drawing one too;
+// exported here so the screens that already imported it keep working.
+export '../../../core/planning/reading_calendar.dart';
+
 /// Everything the detail screen draws above the actions.
 class BookProgress {
   const BookProgress({
@@ -100,60 +104,4 @@ int _daysInsideCurrentPause(DateTime? pausedAt, DateTime today) {
   if (pausedAt == null) return 0;
   final elapsed = daysBetween(pausedAt, today);
   return elapsed < 0 ? 0 : elapsed;
-}
-
-/// One day in the reading calendar.
-class HeatCell {
-  const HeatCell({required this.date, required this.pages, required this.goal});
-
-  final DateTime date;
-
-  /// Pages read on this day.
-  final int pages;
-
-  /// The daily portion this day was measured against.
-  final int goal;
-
-  bool get isEmpty => pages <= 0;
-
-  /// How full the day was, 0 to 1. A day that overshoots caps at full: reading
-  /// three days' worth in one sitting is one dark square, not a brighter one
-  /// than the square next to it.
-  double get intensity {
-    if (pages <= 0 || goal <= 0) return 0;
-    final filled = pages / goal;
-    return filled > 1 ? 1 : filled;
-  }
-}
-
-/// The reading calendar, laid out as columns of seven days.
-///
-/// Column-major and ending on [today], so the newest day is the bottom of the
-/// last column and the grid never shows a future square. Rows are not weekdays:
-/// the design draws no weekday labels, and pinning the rows to a weekday would
-/// mean padding the first column with blanks that mean nothing.
-List<List<HeatCell>> heatmapColumns({
-  required Map<DateTime, int> pagesByDay,
-  required DateTime today,
-  required int pagesPerDay,
-  int columns = 10,
-}) {
-  const rows = 7;
-  final end = dateOnly(today);
-  final first = addDays(end, -(columns * rows - 1));
-
-  return [
-    for (var column = 0; column < columns; column++)
-      [
-        for (var row = 0; row < rows; row++)
-          () {
-            final date = addDays(first, column * rows + row);
-            return HeatCell(
-              date: date,
-              pages: pagesByDay[date] ?? 0,
-              goal: pagesPerDay,
-            );
-          }(),
-      ],
-  ];
 }

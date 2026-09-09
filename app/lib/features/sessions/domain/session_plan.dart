@@ -121,7 +121,8 @@ class SessionPlan {
     final next = [...slots];
     next[index] = next[index].copyWith(pages: target);
 
-    var surplus = next.fold<int>(0, (sum, slot) => sum + slot.pages) - pagesPerDay;
+    var surplus =
+        next.fold<int>(0, (sum, slot) => sum + slot.pages) - pagesPerDay;
 
     // Take from the back, give to the back: the last session of the day is the
     // one that absorbs the change.

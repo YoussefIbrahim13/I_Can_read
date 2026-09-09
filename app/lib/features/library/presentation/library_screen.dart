@@ -270,7 +270,9 @@ class _PlanProgress extends StatelessWidget {
     final total = plan.endPage - plan.startPage + 1;
     final read = plan.lastPageRead < plan.startPage
         ? 0
-        : (plan.lastPageRead > plan.endPage ? plan.endPage : plan.lastPageRead) -
+        : (plan.lastPageRead > plan.endPage
+                  ? plan.endPage
+                  : plan.lastPageRead) -
               plan.startPage +
               1;
     final fraction = total == 0 ? 0.0 : read / total;

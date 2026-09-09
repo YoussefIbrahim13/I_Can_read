@@ -55,7 +55,10 @@ void main() {
   /// Hashing runs in an isolate, which the widget tester's fake clock never
   /// pumps, so every call that reaches it has to be wrapped in `runAsync`.
   Future<void> addBookWithoutItsFile() async {
-    final path = await store.write('book-1', Stream.value(_pdfBytes('original')));
+    final path = await store.write(
+      'book-1',
+      Stream.value(_pdfBytes('original')),
+    );
     final sha = await hashFile(store.resolve(path).path);
     await db.insertImportedBook(
       bookId: 'book-1',
@@ -134,37 +137,38 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('a copy with a different page count asks before it moves anything', (
-    tester,
-  ) async {
-    await tester.runAsync(addBookWithoutItsFile);
-    await pumpScreen(tester);
+  testWidgets(
+    'a copy with a different page count asks before it moves anything',
+    (tester) async {
+      await tester.runAsync(addBookWithoutItsFile);
+      await pumpScreen(tester);
 
-    reportedPageCount = 480;
-    await tester.runAsync(() => offer('a bigger scan'));
-    await tester.pumpAndSettle();
+      reportedPageCount = 480;
+      await tester.runAsync(() => offer('a bigger scan'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('This is a different copy'), findsOneWidget);
-    expect(
-      find.textContaining('This copy has 480 pages'),
-      findsOneWidget,
-    );
-    // Keeping the numbers is the default, so its hint is the one on screen.
-    expect(find.textContaining('Page 120 stays page 120'), findsOneWidget);
+      expect(find.text('This is a different copy'), findsOneWidget);
+      expect(find.textContaining('This copy has 480 pages'), findsOneWidget);
+      // Keeping the numbers is the default, so its hint is the one on screen.
+      expect(find.textContaining('Page 120 stays page 120'), findsOneWidget);
 
-    await tester.tap(find.text('Move my progress across'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('kept as a position in the book'), findsOneWidget);
+      await tester.tap(find.text('Move my progress across'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('kept as a position in the book'),
+        findsOneWidget,
+      );
 
-    await tester.tap(find.text('Link this file'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Link this file'));
+      await tester.pumpAndSettle();
 
-    expect(await db.hasLocalFile('book-1'), isTrue);
-    expect((await db.findBook('book-1'))!.pageCount, 480);
-    expect(find.text('"The Muqaddimah" is ready to read'), findsOneWidget);
+      expect(await db.hasLocalFile('book-1'), isTrue);
+      expect((await db.findBook('book-1'))!.pageCount, 480);
+      expect(find.text('"The Muqaddimah" is ready to read'), findsOneWidget);
 
-    await closeApp(tester);
-  });
+      await closeApp(tester);
+    },
+  );
 
   testWidgets('a copy with the same page count is a formality', (tester) async {
     await tester.runAsync(addBookWithoutItsFile);

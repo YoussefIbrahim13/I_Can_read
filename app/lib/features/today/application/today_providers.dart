@@ -14,9 +14,9 @@ import '../domain/today_agenda.dart';
 final todayProvider = Provider<DateTime>((ref) => readingDay(DateTime.now()));
 
 final _todaySessionsProvider =
-    StreamProvider<List<({Book book, ReadingPlan plan, ReadingSession session})>>(
-      (ref) => ref.watch(appDatabaseProvider).watchLivePlanSessions(),
-    );
+    StreamProvider<
+      List<({Book book, ReadingPlan plan, ReadingSession session})>
+    >((ref) => ref.watch(appDatabaseProvider).watchLivePlanSessions());
 
 final _pagesReadTodayProvider = StreamProvider<Map<String, int>>((ref) {
   return ref
@@ -36,7 +36,10 @@ final todayAgendaProvider = Provider<AsyncValue<TodayAgenda>>((ref) {
     final db = ref.watch(appDatabaseProvider);
 
     final byPlan =
-        <String, ({ReadingPlan plan, Book book, List<ReadingSession> sessions})>{};
+        <
+          String,
+          ({ReadingPlan plan, Book book, List<ReadingSession> sessions})
+        >{};
     for (final row in rows) {
       final entry = byPlan.putIfAbsent(
         row.plan.id,

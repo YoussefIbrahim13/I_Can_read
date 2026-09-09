@@ -49,11 +49,14 @@ void main() {
       expect(progress.fraction, 0.2);
     });
 
-    test('a book not started is at zero rather than at a fraction of a page', () {
-      expect(_progress().pagesRead, 0);
-      expect(_progress().fraction, 0);
-      expect(_progress().isComplete, isFalse);
-    });
+    test(
+      'a book not started is at zero rather than at a fraction of a page',
+      () {
+        expect(_progress().pagesRead, 0);
+        expect(_progress().fraction, 0);
+        expect(_progress().isComplete, isFalse);
+      },
+    );
 
     test('reading past the last page is complete, not over 100%', () {
       final progress = _progress(lastPageRead: 140);

@@ -221,9 +221,9 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
               // button above, so offering both would be two doors to one room.
               if (widget.existing != null)
                 TextButton(
-                  onPressed: () => GoRouter.maybeOf(context)?.push(
-                    '/books/${widget.book.id}/plan/sessions',
-                  ),
+                  onPressed: () => GoRouter.maybeOf(
+                    context,
+                  )?.push('/books/${widget.book.id}/plan/sessions'),
                   child: Text(l10n.sessionsEdit),
                 ),
             ],

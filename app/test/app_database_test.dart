@@ -382,18 +382,25 @@ void main() {
       expect(await shelf(paused: true), isEmpty);
     });
 
-    test('a book with no plan cannot be paused, so it stays on reading', () async {
-      await insertBook();
+    test(
+      'a book with no plan cannot be paused, so it stays on reading',
+      () async {
+        await insertBook();
 
-      expect(await shelf(paused: false), ['book-1']);
-      expect(await shelf(paused: true), isEmpty);
-    });
+        expect(await shelf(paused: false), ['book-1']);
+        expect(await shelf(paused: true), isEmpty);
+      },
+    );
 
     test('a finished book is on neither reading shelf', () async {
       await insertBook();
       await insertPlan();
       await db.pausePlan('plan-1', DateTime(2026, 1, 5));
-      await db.setBookStatus('book-1', BookStatus.finished, DateTime(2026, 2, 1));
+      await db.setBookStatus(
+        'book-1',
+        BookStatus.finished,
+        DateTime(2026, 2, 1),
+      );
 
       expect(await shelf(paused: false), isEmpty);
       expect(await shelf(paused: true), isEmpty);
@@ -474,17 +481,14 @@ void main() {
       await insertBook(id: 'book-2', title: 'Second');
       await insertPlan();
 
-      expect(await db.watchActivePlans().first, {
-        'book-1': isA<ReadingPlan>(),
-      });
+      expect(await db.watchActivePlans().first, {'book-1': isA<ReadingPlan>()});
     });
   });
 
   group('pausing a plan', () {
-    Future<ReadingPlan> storedPlan() =>
-        (db.select(db.readingPlans)
-              ..where((p) => p.id.equals('plan-1')))
-            .getSingle();
+    Future<ReadingPlan> storedPlan() => (db.select(
+      db.readingPlans,
+    )..where((p) => p.id.equals('plan-1'))).getSingle();
 
     Future<void> addSession() {
       return db.replaceSessions('plan-1', [
@@ -504,15 +508,18 @@ void main() {
       await insertPlan();
     });
 
-    test('a paused plan owes nothing today and reminds about nothing', () async {
-      await addSession();
-      expect(await db.watchLivePlanSessions().first, hasLength(1));
+    test(
+      'a paused plan owes nothing today and reminds about nothing',
+      () async {
+        await addSession();
+        expect(await db.watchLivePlanSessions().first, hasLength(1));
 
-      await db.pausePlan('plan-1', DateTime(2026, 1, 5));
+        await db.pausePlan('plan-1', DateTime(2026, 1, 5));
 
-      expect(await db.watchLivePlanSessions().first, isEmpty);
-      expect(await db.watchDueReminders().first, isEmpty);
-    });
+        expect(await db.watchLivePlanSessions().first, isEmpty);
+        expect(await db.watchDueReminders().first, isEmpty);
+      },
+    );
 
     test('resuming banks the days spent paused', () async {
       await db.pausePlan('plan-1', DateTime(2026, 1, 5));

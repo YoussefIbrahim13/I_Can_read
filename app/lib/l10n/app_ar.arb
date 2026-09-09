@@ -117,6 +117,9 @@
   "@bookStartedOn": {
     "placeholders": { "date": { "type": "String" } }
   },
+  "bookDelete": "شيل الكتاب ده",
+  "bookDeleteConfirm": "الكتاب وخطته وتذكيراته هيروحوا، من الموبايل ده ومن باقي أجهزتك. ونسخة الـ PDF اللي التطبيق عملها هتتمسح كمان — الملف الأصلي اللي اخترته منه ما هيتلمسش.",
+  "bookDeleteYes": "شيله",
   "bookOfTheBook": "من الكتاب",
   "bookPlanSection": "الخطة",
   "bookSessionCount": "{count, plural, =0{من غير مواعيد} one{جلسة واحدة} two{جلستين} few{{count} جلسات} many{{count} جلسة} other{{count} جلسة}}",
@@ -227,6 +230,8 @@
   "statsFinishedCount": "كتب خلّصتها",
   "statsPagesPerDay": "صفحات باليوم",
   "statsToday": "النهارده",
+  "statsCalendar": "أيامك اللي قريت فيها",
+  "statsCalendarHint": "مربّع لكل يوم، من كل الكتب. كل ما اللون يغمق كل ما تكون قرّبت أكتر من ورد اليوم كله.",
   "statsFinishedSection": "ختمات خلّصتها",
   "statsTookDays": "{count, plural, one{يوم واحد} two{يومين} few{{count} أيام} many{{count} يوم} other{{count} يوم}}",
   "@statsTookDays": {
@@ -339,6 +344,21 @@
   "settingsThemeDark": "داكن",
 
   "settingsAccount": "الحساب",
+  "settingsBackup": "نسخة احتياطية",
+  "settingsBackupHint": "احفظ كتبك وخططك وتاريخ قراءتك في ملف عندك. ملفات الـ PDF مش فيه — بتفضل على الموبايل ده.",
+  "backupExport": "احفظ نسخة",
+  "backupImport": "استرجع من نسخة",
+  "backupExported": "{count, plural, =1{اتحفظت، وفيها عنصر واحد} two{اتحفظت، وفيها عنصرين} few{اتحفظت، وفيها {count} عناصر} other{اتحفظت، وفيها {count} عنصر}}",
+  "@backupExported": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "backupImported": "{count, plural, =1{اترجّع عنصر واحد} two{اترجّعوا عنصرين} few{اترجّعوا {count} عناصر} other{اترجّع {count} عنصر}}",
+  "@backupImported": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "backupErrorNotABackup": "الملف ده مش نسخة احتياطية من التطبيق ده.",
+  "backupErrorTooNew": "النسخة دي اتكتبت بإصدار أحدث من التطبيق. حدّث التطبيق وجرّب تاني.",
+  "backupErrorFailed": "الحاجة ما نجحتش. مفيش حاجة اتغيّرت.",
   "settingsSignedOut": "بتقرأ من غير حساب.",
   "settingsSignedOutHint": "الحساب بيحفظ كتبك وأهدافك وتقدّمك لو غيّرت الموبايل.",
   "settingsSignIn": "سجّل دخولك أو اعمل حساب",
@@ -395,5 +415,20 @@
   "resetBackToSignIn": "ارجع لتسجيل الدخول",
   "resetErrorCode": "الكود ده مش صالح. اطلب كود جديد وجرّب تاني.",
   "resetErrorTooMany": "محاولات كتير. استنى دقيقة وجرّب تاني.",
-  "resetSpamHint": "مجاش حاجة؟ بصّ في مجلد الـ spam قبل ما تطلب كود تاني — أول ما يتبعت كود جديد القديم بيبطّل يشتغل."
+  "resetSpamHint": "مجاش حاجة؟ بصّ في مجلد الـ spam قبل ما تطلب كود تاني — أول ما يتبعت كود جديد القديم بيبطّل يشتغل.",
+
+  "deleteAccount": "احذف حسابي",
+  "deleteAccountTitle": "حذف الحساب",
+  "deleteAccountWhatGoes": "حسابك وكل اللي متسجّل عليه — كتبك وخططك وتذكيراتك وكل اللي قريته — هيتمسحوا من السيرفر نهائي. مفيش رجوع في القرار ده.",
+  "deleteAccountWhatStays": "الكتب اللي على الموبايل ده هتفضل مكانها. ملفاتها عمرها ما كانت على السيرفر، والمكتبة هترجع زي ما كانت قبل ما تسجّل دخول — بتاعتك، على الجهاز ده.",
+  "deleteAccountConfirmPassword": "اكتب كلمة السر للتأكيد",
+  "deleteAccountConfirmGoogle": "أكّد بجوجل",
+  "deleteAccountGoogleHint": "داخل بجوجل؟ أكّد بنفس الطريقة — مفيش كلمة سر تكتبها.",
+  "deleteAccountSubmit": "احذف حسابي نهائي",
+  "deleteAccountWorking": "بنمسح…",
+  "deleteAccountDone": "الحساب اتمسح",
+  "deleteAccountDoneBody": "مفضلش منه حاجة على السيرفر. وكتبك لسه على الموبايل.",
+  "deleteAccountErrorNotConfirmed": "ده ما أكّدش إن الحساب بتاعك. مفيش حاجة اتمسحت.",
+  "deleteAccountErrorGoogle": "جوجل ما أكّدتش. مفيش حاجة اتمسحت.",
+  "deleteAccountKeepMine": "خلّي حسابي"
 }

@@ -73,6 +73,14 @@ void main() {
   }
 
   Future<void> pumpStats(WidgetTester tester, {Locale? locale}) async {
+    // A phone-height viewport rather than the 600px default. The screen is a
+    // lazy list, and since the reading calendar was added the finished-books
+    // section sits below the fold — where it is never built and cannot be
+    // found at all.
+    tester.view.physicalSize = const Size(400 * 3, 1600 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+
     semantics ??= tester.ensureSemantics();
 
     await tester.pumpWidget(

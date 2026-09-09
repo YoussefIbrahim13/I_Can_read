@@ -30,10 +30,9 @@ class AuthSession {
   ///
   /// A 30-second buffer avoids the race where the token expires between the
   /// check and the request reaching the server.
-  bool get isAccessTokenExpired =>
-      DateTime.now().isAfter(accessTokenExpiresAt.subtract(
-        const Duration(seconds: 30),
-      ));
+  bool get isAccessTokenExpired => DateTime.now().isAfter(
+    accessTokenExpiresAt.subtract(const Duration(seconds: 30)),
+  );
 
   AuthSession copyWith({
     String? accessToken,
@@ -45,8 +44,7 @@ class AuthSession {
       email: email,
       accessToken: accessToken ?? this.accessToken,
       refreshToken: refreshToken ?? this.refreshToken,
-      accessTokenExpiresAt:
-          accessTokenExpiresAt ?? this.accessTokenExpiresAt,
+      accessTokenExpiresAt: accessTokenExpiresAt ?? this.accessTokenExpiresAt,
       displayName: displayName,
     );
   }
@@ -166,8 +164,9 @@ class AuthStateNotifier extends Notifier<AuthSession?> {
 
 /// The current auth session, or null. Watched by everything that cares about
 /// whether the reader is signed in.
-final authStateProvider =
-    NotifierProvider<AuthStateNotifier, AuthSession?>(AuthStateNotifier.new);
+final authStateProvider = NotifierProvider<AuthStateNotifier, AuthSession?>(
+  AuthStateNotifier.new,
+);
 
 /// Convenience: true when the reader has an account on this device.
 final isSignedInProvider = Provider<bool>((ref) {

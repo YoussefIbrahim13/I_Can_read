@@ -64,18 +64,17 @@ void main() {
     });
 
     test('a host with no scheme', () {
-      expect(
-        () => resolve('api.example.com'),
-        throwsA(isA<ApiConfigError>()),
-      );
+      expect(() => resolve('api.example.com'), throwsA(isA<ApiConfigError>()));
     });
 
-    test('a query string, which would be dropped silently when paths are added',
-        () {
-      expect(
-        () => resolve('https://api.example.com?token=abc'),
-        throwsA(isA<ApiConfigError>()),
-      );
-    });
+    test(
+      'a query string, which would be dropped silently when paths are added',
+      () {
+        expect(
+          () => resolve('https://api.example.com?token=abc'),
+          throwsA(isA<ApiConfigError>()),
+        );
+      },
+    );
   });
 }

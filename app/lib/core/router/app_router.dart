@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/delete_account_screen.dart';
 import '../../features/account/presentation/password_reset_screen.dart';
 import '../../features/add_book/presentation/add_book_screen.dart';
 import '../../features/book_detail/presentation/book_detail_screen.dart';
@@ -44,6 +45,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // A step off the sign-in screen rather than a child of it: the reader
       // came here because the password they have does not work, so the screen
       // that asked for it has nothing more to offer until this one is done.
+      // Its own screen for the same reason as the reset: it is one deliberate
+      // task, and the only irreversible one in the app.
+      GoRoute(
+        path: '/account/delete',
+        builder: (context, state) => const DeleteAccountScreen(),
+      ),
       GoRoute(
         path: '/account/reset',
         builder: (context, state) => PasswordResetScreen(

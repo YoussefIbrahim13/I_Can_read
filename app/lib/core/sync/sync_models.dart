@@ -435,28 +435,33 @@ class SyncPayload {
 
   factory SyncPayload.fromJson(Map<String, dynamic> json) {
     return SyncPayload(
-      books: (json['books'] as List<dynamic>?)
+      books:
+          (json['books'] as List<dynamic>?)
               ?.map((dynamic e) => BookDto.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
-      fingerprints: (json['fingerprints'] as List<dynamic>?)
+      fingerprints:
+          (json['fingerprints'] as List<dynamic>?)
               ?.map(
                 (dynamic e) =>
                     FingerprintDto.fromJson(e as Map<String, dynamic>),
               )
               .toList() ??
           const [],
-      plans: (json['plans'] as List<dynamic>?)
+      plans:
+          (json['plans'] as List<dynamic>?)
               ?.map((dynamic e) => PlanDto.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
-      sessions: (json['sessions'] as List<dynamic>?)
+      sessions:
+          (json['sessions'] as List<dynamic>?)
               ?.map(
                 (dynamic e) => SessionDto.fromJson(e as Map<String, dynamic>),
               )
               .toList() ??
           const [],
-      logEntries: (json['logEntries'] as List<dynamic>?)
+      logEntries:
+          (json['logEntries'] as List<dynamic>?)
               ?.map(
                 (dynamic e) => LogEntryDto.fromJson(e as Map<String, dynamic>),
               )
@@ -468,8 +473,9 @@ class SyncPayload {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'books': books.map((BookDto e) => e.toJson()).toList(),
-      'fingerprints':
-          fingerprints.map((FingerprintDto e) => e.toJson()).toList(),
+      'fingerprints': fingerprints
+          .map((FingerprintDto e) => e.toJson())
+          .toList(),
       'plans': plans.map((PlanDto e) => e.toJson()).toList(),
       'sessions': sessions.map((SessionDto e) => e.toJson()).toList(),
       'logEntries': logEntries.map((LogEntryDto e) => e.toJson()).toList(),
@@ -485,10 +491,7 @@ class SyncPullResponse {
   /// Payload of modified entities since requested timestamp.
   final SyncPayload changes;
 
-  const SyncPullResponse({
-    required this.serverTime,
-    required this.changes,
-  });
+  const SyncPullResponse({required this.serverTime, required this.changes});
 
   factory SyncPullResponse.fromJson(Map<String, dynamic> json) {
     return SyncPullResponse(
@@ -531,7 +534,8 @@ class SyncPushResponse {
       serverTime: DateTime.parse(json['serverTime'] as String),
       applied: json['applied'] as int,
       ignored: json['ignored'] as int,
-      rejected: (json['rejected'] as List<dynamic>?)
+      rejected:
+          (json['rejected'] as List<dynamic>?)
               ?.map((dynamic e) => e as String)
               .toList() ??
           const [],
@@ -553,20 +557,14 @@ class LookupByHashRequest {
   /// SHA-256 hash of the file.
   final String sha256;
 
-  const LookupByHashRequest({
-    required this.sha256,
-  });
+  const LookupByHashRequest({required this.sha256});
 
   factory LookupByHashRequest.fromJson(Map<String, dynamic> json) {
-    return LookupByHashRequest(
-      sha256: json['sha256'] as String,
-    );
+    return LookupByHashRequest(sha256: json['sha256'] as String);
   }
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'sha256': sha256,
-    };
+    return <String, dynamic>{'sha256': sha256};
   }
 }
 
@@ -575,9 +573,7 @@ class LookupByHashResponse {
   /// The matched book DTO, or null if no matching fingerprint exists.
   final BookDto? book;
 
-  const LookupByHashResponse({
-    this.book,
-  });
+  const LookupByHashResponse({this.book});
 
   factory LookupByHashResponse.fromJson(Map<String, dynamic> json) {
     return LookupByHashResponse(
@@ -588,8 +584,6 @@ class LookupByHashResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'book': book?.toJson(),
-    };
+    return <String, dynamic>{'book': book?.toJson()};
   }
 }

@@ -102,12 +102,12 @@ class PlanDraft {
     // Each mode is judged on the field it actually uses; a stale value in the
     // other one must not block a plan the reader can see is fine.
     return switch (mode) {
-      PlanMode.byDeadline => daysBetween(startDate, targetEndDate) < 0
-          ? PlanDraftProblem.targetDateBeforeStart
-          : null,
-      PlanMode.byPagesPerDay => pagesPerDay < 1
-          ? PlanDraftProblem.pagesPerDayTooSmall
-          : null,
+      PlanMode.byDeadline =>
+        daysBetween(startDate, targetEndDate) < 0
+            ? PlanDraftProblem.targetDateBeforeStart
+            : null,
+      PlanMode.byPagesPerDay =>
+        pagesPerDay < 1 ? PlanDraftProblem.pagesPerDayTooSmall : null,
     };
   }
 

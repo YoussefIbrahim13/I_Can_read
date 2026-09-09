@@ -55,7 +55,8 @@ void main() {
   LocateFileController controller() =>
       container.read(locateFileControllerProvider.notifier);
 
-  LocateFileState currentState() => container.read(locateFileControllerProvider);
+  LocateFileState currentState() =>
+      container.read(locateFileControllerProvider);
 
   /// A book already in the library, hashed from [body].
   Future<String> addBook({
@@ -110,9 +111,9 @@ void main() {
   /// Puts the book in the state a new phone leaves it in: known, but with no
   /// file here.
   Future<void> forgetFile(String bookId) async {
-    await (db.delete(db.localBookFiles)
-          ..where((f) => f.bookId.equals(bookId)))
-        .go();
+    await (db.delete(
+      db.localBookFiles,
+    )..where((f) => f.bookId.equals(bookId))).go();
     final relative = store.relativePathFor(bookId);
     await store.delete(relative);
   }
@@ -242,19 +243,22 @@ void main() {
       expect(plan.pagesPerDay, 10);
     });
 
-    test('a shorter copy cannot leave the plan past its own last page', () async {
-      // Start over with a copy that is shorter than the book on record.
-      await controller().discardPending();
-      reportedPageCount = 200;
-      await offer('b1', body: 'an abridged scan');
+    test(
+      'a shorter copy cannot leave the plan past its own last page',
+      () async {
+        // Start over with a copy that is shorter than the book on record.
+        await controller().discardPending();
+        reportedPageCount = 200;
+        await offer('b1', body: 'an abridged scan');
 
-      await controller().confirmUnrecognised();
+        await controller().confirmUnrecognised();
 
-      final plan = (await db.select(db.readingPlans).get()).single;
-      expect(plan.endPage, 200);
-      expect(plan.lastPageRead, 150);
-      expect(plan.startPage, 21);
-    });
+        final plan = (await db.select(db.readingPlans).get()).single;
+        expect(plan.endPage, 200);
+        expect(plan.lastPageRead, 150);
+        expect(plan.startPage, 21);
+      },
+    );
 
     test('the reading log is left exactly as it was', () async {
       final before = await db.select(db.readingLog).get();

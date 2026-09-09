@@ -36,6 +36,28 @@ public record ResetPasswordRequest(
     [Required, MinLength(8), MaxLength(256)] string NewPassword);
 
 /// <summary>
+/// Proof that the caller is the account holder, in whichever form they have.
+/// </summary>
+/// <remarks>
+/// Both are optional here and exactly one is required in practice: the password
+/// for an account that has one, a fresh Google ID token for an account that
+/// only ever signs in with Google. Which one applies is decided from the stored
+/// account, not from what the caller chose to send.
+/// </remarks>
+public record DeleteAccountRequest(string? Password, string? GoogleIdToken);
+
+public enum AccountDeletionOutcome
+{
+    Deleted,
+
+    /// <summary>The password or Google token did not prove it was them.</summary>
+    NotConfirmed,
+
+    /// <summary>The token names an account that is already gone.</summary>
+    NotFound
+}
+
+/// <summary>
 /// What a reset attempt did.
 /// </summary>
 /// <remarks>
