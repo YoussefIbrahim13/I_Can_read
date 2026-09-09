@@ -292,6 +292,14 @@
 
   "readerFinishSession": "أنهيت وردي",
   "readerKeepReading": "كمّل قراءة",
+  "readerCopyPage": "انسخ الصفحة دي",
+  "readerPageCopied": "صفحة {page} اتنسخت",
+  "@readerPageCopied": {
+    "placeholders": {
+      "page": { "type": "int" }
+    }
+  },
+  "readerPageHasNoText": "الصفحة دي صورة ممسوحة، مفيش فيها نص يتنسخ.",
   "readerPageOf": "صفحة {current} من {total}",
   "@readerPageOf": {
     "placeholders": {
@@ -344,6 +352,7 @@
   "settingsThemeDark": "داكن",
 
   "settingsAccount": "الحساب",
+  "settingsPrivacyPolicy": "سياسة الخصوصية",
   "settingsBackup": "نسخة احتياطية",
   "settingsBackupHint": "احفظ كتبك وخططك وتاريخ قراءتك في ملف عندك. ملفات الـ PDF مش فيه — بتفضل على الموبايل ده.",
   "backupExport": "احفظ نسخة",

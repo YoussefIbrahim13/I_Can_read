@@ -294,6 +294,14 @@
 
   "readerFinishSession": "I finished my portion",
   "readerKeepReading": "Keep reading",
+  "readerCopyPage": "Copy this page",
+  "readerPageCopied": "Page {page} copied",
+  "@readerPageCopied": {
+    "placeholders": {
+      "page": { "type": "int" }
+    }
+  },
+  "readerPageHasNoText": "This page is a scan with no text to copy.",
   "readerPageOf": "Page {current} of {total}",
   "@readerPageOf": {
     "placeholders": {
@@ -346,6 +354,7 @@
   "settingsThemeDark": "Dark",
 
   "settingsAccount": "Account",
+  "settingsPrivacyPolicy": "Privacy policy",
   "settingsBackup": "Backup",
   "settingsBackupHint": "Save your books, plans and reading history to a file you keep. The PDFs are not in it — they stay on this phone.",
   "backupExport": "Save a backup",

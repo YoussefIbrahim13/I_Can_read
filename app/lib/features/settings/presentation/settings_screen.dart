@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../core/config/legal_links.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../../core/sync/sync_status.dart';
@@ -100,10 +102,44 @@ class SettingsScreen extends ConsumerWidget {
                   Kicker(l10n.settingsBackup),
                   const SizedBox(height: 11),
                   const _BackupSection(),
+                  const _PrivacyPolicyLink(),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The way to the published privacy policy.
+///
+/// Last on the screen, and absent entirely in a build that was not given a URL.
+class _PrivacyPolicyLink extends ConsumerWidget {
+  const _PrivacyPolicyLink();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final url = ref.watch(privacyPolicyUrlProvider);
+    if (url == null) return const SizedBox.shrink();
+
+    final l10n = AppLocalizations.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.x6 - 4),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton(
+          // External on purpose: an in-app browser would put our chrome around
+          // a document whose whole point is that the reader can check it for
+          // themselves, and share it with anyone.
+          onPressed: () =>
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).appColors.muted,
+          ),
+          child: Text(l10n.settingsPrivacyPolicy),
         ),
       ),
     );

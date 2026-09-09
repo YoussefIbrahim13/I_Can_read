@@ -77,7 +77,10 @@ void main() {
     });
 
     test('names the file by the day it was written', () {
-      expect(backupFileName(DateTime(2026, 3, 9)), 'yaqra-backup-2026-03-09.json');
+      expect(
+        backupFileName(DateTime(2026, 3, 9)),
+        'yaqra-backup-2026-03-09.json',
+      );
     });
   });
 

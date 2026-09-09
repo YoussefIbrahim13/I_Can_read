@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -135,6 +136,7 @@ class _ReaderState extends ConsumerState<_Reader> {
 
   late int _page = _openedAt;
   var _saving = false;
+  var _copying = false;
 
   /// Set once the reader asks to carry on past the day's portion.
   ///
@@ -190,9 +192,58 @@ class _ReaderState extends ConsumerState<_Reader> {
     );
   }
 
+  /// Copy, and nothing else.
+  ///
+  /// "Select all" means the whole file to the viewer, including the pages
+  /// [portionLayout] parks out of sight. It would hand back text the reader was
+  /// never shown, from a book this screen exists to keep bounded.
+  void _copyOnly(
+    PdfViewerContextMenuBuilderParams params,
+    List<ContextMenuButtonItem> items,
+  ) {
+    items.removeWhere((item) => item.type == ContextMenuButtonType.selectAll);
+  }
+
   /// Pages this sitting has covered, at least one — being on a page counts as
   /// having read it.
   int get _pagesThisSitting => (_page - _openedAt + 1).clamp(1, _page);
+
+  /// The whole of the page on screen, on the clipboard.
+  ///
+  /// Word-by-word selection is for a phrase; a reader who wants the page wants
+  /// the page, and dragging two handles down a scan to get it is a chore. The
+  /// current page only — never the portion, never the book — because that is
+  /// what the reader can see, and seeing it is what makes taking it honest.
+  Future<void> _copyPage() async {
+    if (_copying || !_controller.isReady) return;
+    setState(() => _copying = true);
+
+    String text;
+    try {
+      final page = _controller.pages[_page - 1];
+      text = (await page.loadStructuredText()).fullText.trim();
+    } finally {
+      if (mounted) setState(() => _copying = false);
+    }
+
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // A scanned page with no OCR layer yields nothing. Saying so beats a
+    // "copied" that leaves the reader pasting emptiness into a note.
+    if (text.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.readerPageHasNoText)),
+      );
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: text));
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.readerPageCopied(_page))),
+    );
+  }
 
   Future<void> _finish() async {
     if (_saving) return;
@@ -238,6 +289,12 @@ class _ReaderState extends ConsumerState<_Reader> {
               backgroundColor: theme.appColors.readerBackground,
               layoutPages: _layoutPortion,
               calculateCurrentPageNumber: _currentPage,
+              // Long-press picks a word, the handles widen it, and the menu
+              // offers to copy. Stated rather than left to the viewer's
+              // default, because copying a line out of the book is part of
+              // reading it, not an incidental of the package.
+              textSelectionParams: const PdfTextSelectionParams(enabled: true),
+              customizeContextMenuItems: _copyOnly,
               onPageChanged: (page) {
                 if (page != null && page != _page) setState(() => _page = page);
               },
@@ -277,6 +334,20 @@ class _ReaderState extends ConsumerState<_Reader> {
                       color: theme.appColors.muted,
                     ),
                   ),
+                  // Sits with the page count rather than under the rule: it is
+                  // about the page on screen, not about the day's reading, and
+                  // the buttons below all speak to the plan.
+                  IconButton(
+                    onPressed: _copying ? null : _copyPage,
+                    icon: const Icon(Icons.content_copy_outlined, size: 17),
+                    color: theme.appColors.muted,
+                    tooltip: l10n.readerCopyPage,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: AppSpacing.minTapTarget,
+                      height: AppSpacing.minTapTarget,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.x2),
@@ -285,10 +356,15 @@ class _ReaderState extends ConsumerState<_Reader> {
               else
                 SessionRule(fraction: done / _portion.pageCount),
               const SizedBox(height: AppSpacing.x4 - 4),
-              OutlinedButton(
-                onPressed: _saving ? null : _finish,
-                child: Text(l10n.readerFinishSession),
-              ),
+              // Only once the portion has actually been read to its end. A
+              // button offered on page five of twenty-six invites the reader to
+              // call a day's reading done that they have not done, and the plan
+              // would take them at their word.
+              if (atPortionEnd)
+                OutlinedButton(
+                  onPressed: _saving ? null : _finish,
+                  child: Text(l10n.readerFinishSession),
+                ),
               // Offered only at the end of the portion, where it answers the
               // question the reader is actually asking. Anywhere earlier it
               // would just be a way out of the frame the plan exists to hold.
