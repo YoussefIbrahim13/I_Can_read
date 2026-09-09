@@ -14,6 +14,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../plan/application/plan_providers.dart';
 import '../application/reader_providers.dart';
 import '../domain/portion_layout.dart';
+import '../domain/sitting_clock.dart';
 
 /// Screen 8 — the page itself, and one way to say you are done.
 ///
@@ -124,8 +125,12 @@ class _Reader extends ConsumerStatefulWidget {
   ConsumerState<_Reader> createState() => _ReaderState();
 }
 
-class _ReaderState extends ConsumerState<_Reader> {
+class _ReaderState extends ConsumerState<_Reader>
+    with WidgetsBindingObserver {
   final _controller = PdfViewerController();
+
+  /// Time the book has actually been in front of the reader this sitting.
+  final _spentReading = SittingClock();
 
   /// The page the reader started this sitting on. Everything from here to the
   /// current page is what gets credited.
@@ -155,6 +160,30 @@ class _ReaderState extends ConsumerState<_Reader> {
           toPage: widget.plan.endPage,
         )
       : widget.portion;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Anything short of resumed means nobody is looking at the page. Without
+    // this, a reader who locks the phone mid-portion and comes back tomorrow
+    // banks a night's sleep as an evening's reading.
+    if (state == AppLifecycleState.resumed) {
+      _spentReading.resume();
+    } else {
+      _spentReading.pause();
+    }
+  }
 
   void _keepReading() {
     setState(() => _unlocked = true);
@@ -255,6 +284,7 @@ class _ReaderState extends ConsumerState<_Reader> {
             planId: widget.plan.id,
             fromPage: _openedAt,
             toPage: _page < _openedAt ? _openedAt : _page,
+            spent: _spentReading.elapsed,
           );
     } finally {
       if (mounted) setState(() => _saving = false);

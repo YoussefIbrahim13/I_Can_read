@@ -35,6 +35,18 @@ final _dailyPagesProvider = StreamProvider.autoDispose
 /// because the query has to fetch exactly the range that gets drawn.
 const heatmapColumnCount = 10;
 
+/// Measured time spent inside one book, over its whole life.
+///
+/// Not windowed like the calendar above: this is the reader's total with the
+/// book, and a ختمة that took four months should say so rather than reporting
+/// only the part of it that fits on a grid.
+final _timeReadingProvider = StreamProvider.autoDispose.family<Duration, String>(
+  (ref, planId) => ref
+      .watch(appDatabaseProvider)
+      .watchReadingPace(planId: planId)
+      .map((pace) => pace.time),
+);
+
 /// Where a book stands, ready to draw.
 ///
 /// Null while the book has no plan — there is nothing to be ahead of or behind,
@@ -45,12 +57,14 @@ final bookProgressProvider = Provider.autoDispose
 
       final sessions = ref.watch(planSessionsProvider(plan.id));
       final readToday = ref.watch(_pagesReadTodayProvider(plan.id));
+      final timeReading = ref.watch(_timeReadingProvider(plan.id));
 
-      // Only the session list is awaited. Today's pages arrive on a second
-      // stream, and blocking the whole screen on it would blank the progress
-      // figure every time a page is logged.
+      // Only the session list is awaited. Today's pages and the reading time
+      // arrive on their own streams, and blocking the whole screen on them
+      // would blank the progress figure every time a page is logged.
       return sessions.whenData(
         (rows) => buildBookProgress(
+          timeReading: timeReading.value ?? Duration.zero,
           plan: ref.watch(appDatabaseProvider).specOf(plan),
           lastPageRead: plan.lastPageRead,
           sessionCount: rows.length,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/planning/plan_math.dart';
 import '../../../core/planning/reading_calendar.dart';
+import '../../../core/planning/reading_pace.dart';
 import '../../today/application/today_providers.dart';
 import '../domain/reading_stats.dart';
 
@@ -58,6 +59,18 @@ final libraryCalendarProvider = Provider<List<List<HeatCell>>>((ref) {
   );
 });
 
+/// The reader's pace over the same window the figures cover.
+///
+/// Windowed rather than lifetime, unlike `readingPaceProvider`: this screen's
+/// header says "last 30 days", and a total that quietly reached further back
+/// would make that header a lie.
+final _windowPaceProvider = StreamProvider<ReadingPace>((ref) {
+  final today = ref.watch(todayProvider);
+  return ref
+      .watch(appDatabaseProvider)
+      .watchReadingPace(from: addDays(today, -(statsWindowDays - 1)));
+});
+
 final _finishedBooksProvider =
     StreamProvider<List<({Book book, ReadingPlan plan})>>(
       (ref) => ref.watch(appDatabaseProvider).watchFinishedBooks(),
@@ -72,10 +85,11 @@ final readingStatsProvider = Provider<AsyncValue<ReadingStats>>((ref) {
   final pages = ref.watch(_dailyPagesProvider);
   final finished = ref.watch(_finishedBooksProvider);
   final lastRead = ref.watch(_lastReadDatesProvider);
+  final pace = ref.watch(_windowPaceProvider);
 
-  // Only the chart is awaited. The finished list arrives on its own streams,
-  // and blocking the screen on them would blank the three figures every time
-  // a page is logged.
+  // Only the chart is awaited. The finished list and the pace arrive on their
+  // own streams, and blocking the screen on them would blank the three figures
+  // every time a page is logged.
   return pages.whenData((pagesByDay) {
     final lastReadDates = lastRead.value ?? const <String, DateTime>{};
     final books = finished.value ?? const <({Book book, ReadingPlan plan})>[];
@@ -84,6 +98,7 @@ final readingStatsProvider = Provider<AsyncValue<ReadingStats>>((ref) {
       pagesByDay: pagesByDay,
       today: ref.watch(todayProvider),
       windowDays: statsWindowDays,
+      pace: pace.value ?? ReadingPace.unknown,
       finished: [
         for (final row in books)
           FinishedBookRecord(

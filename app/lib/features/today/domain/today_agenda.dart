@@ -143,6 +143,9 @@ class TodayAgenda {
   int get totalPages => entries.fold(0, (sum, entry) => sum + entry.pages);
   int get pagesDone => entries.fold(0, (sum, entry) => sum + entry.pagesDone);
 
+  /// What the day still owes, across every book.
+  int get pagesLeft => totalPages - pagesDone;
+
   /// True when there was work today and all of it is finished.
   bool get isDone => entries.isNotEmpty && current == null;
 

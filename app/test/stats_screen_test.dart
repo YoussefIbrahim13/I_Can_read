@@ -62,12 +62,19 @@ void main() {
   /// An evening hour: the reading day rolls over at 04:00, so midnight would
   /// be credited to the day before.
   var logId = 0;
-  Future<void> read(String bookId, int day, int pages, {int from = 1}) {
+  Future<void> read(
+    String bookId,
+    int day,
+    int pages, {
+    int from = 1,
+    Duration took = Duration.zero,
+  }) {
     return db.recordReading(
       planId: 'plan-$bookId',
       fromPage: from,
       toPage: from + pages - 1,
       readAt: DateTime(2026, 1, day, 21),
+      durationSeconds: took.inSeconds,
       logId: 'log-${logId++}',
     );
   }
@@ -137,6 +144,46 @@ void main() {
     expect(find.text('3'), findsOneWidget);
     expect(find.text('20'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('time read and the pace it implies sit under the figures', (
+    tester,
+  ) async {
+    await addBook(id: 'b1', title: 'The Muqaddimah');
+    // Twenty pages in forty minutes: two minutes a page.
+    await read('b1', 29, 20, from: 1, took: const Duration(minutes: 40));
+    await pumpStats(tester);
+
+    expect(
+      find.text('40 minutes with a book · about 2 minutes a page'),
+      findsOneWidget,
+    );
+
+    await closeApp(tester);
+  });
+
+  testWidgets('untimed reading says nothing about time at all', (tester) async {
+    await addBook(id: 'b1', title: 'The Muqaddimah');
+    // Logged before the app started timing sittings.
+    await read('b1', 29, 20, from: 1);
+    await pumpStats(tester);
+
+    expect(find.textContaining('with a book'), findsNothing);
+    expect(find.textContaining('a page'), findsNothing);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('one short sitting is a total but not yet a pace', (tester) async {
+    await addBook(id: 'b1', title: 'The Muqaddimah');
+    // Under ReadingPace.minimumPages: enough to report, too little to predict.
+    await read('b1', 29, 4, from: 1, took: const Duration(minutes: 8));
+    await pumpStats(tester);
+
+    expect(find.text('8 minutes with a book'), findsOneWidget);
+    expect(find.textContaining('a page'), findsNothing);
 
     await closeApp(tester);
   });

@@ -166,6 +166,52 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('adds up the time actually spent inside the book', (
+    tester,
+  ) async {
+    await addBook(lastPageRead: 40);
+    await db.recordReading(
+      planId: 'plan-1',
+      fromPage: 1,
+      toPage: 20,
+      readAt: DateTime(2026, 1, 3, 21),
+      durationSeconds: const Duration(hours: 1, minutes: 5).inSeconds,
+      logId: 'log-1',
+    );
+    await db.recordReading(
+      planId: 'plan-1',
+      fromPage: 21,
+      toPage: 40,
+      readAt: DateTime(2026, 1, 4, 21),
+      durationSeconds: const Duration(minutes: 25).inSeconds,
+      logId: 'log-2',
+    );
+    await pumpDetail(tester);
+
+    expect(find.text('Time reading: 1 hour 30 minutes'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('a book read before the clock existed claims no time', (
+    tester,
+  ) async {
+    await addBook(lastPageRead: 40);
+    await db.recordReading(
+      planId: 'plan-1',
+      fromPage: 1,
+      toPage: 40,
+      readAt: DateTime(2026, 1, 3, 21),
+      logId: 'log-1',
+    );
+    await pumpDetail(tester);
+
+    // Zero would read as "you finished forty pages instantly".
+    expect(find.textContaining('Time reading'), findsNothing);
+
+    await closeApp(tester);
+  });
+
   testWidgets('a reader on pace is told the date and nothing about lateness', (
     tester,
   ) async {

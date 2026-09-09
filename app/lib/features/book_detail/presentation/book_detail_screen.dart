@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/format/app_dates.dart';
+import '../../../core/format/app_durations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/cover_plate.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -258,6 +259,16 @@ class _PlanCard extends StatelessWidget {
           if (progress.pausedAt case final pausedAt?)
             Text(
               l10n.bookPausedSince(AppDates.dayAndMonth(pausedAt, locale)),
+              style: aside,
+            ),
+          // Said only once something has actually been timed. A book read
+          // before the clock existed would otherwise be told it took no time
+          // at all, which is a measurement nobody made.
+          if (progress.hasTimeReading)
+            Text(
+              l10n.bookTimeReading(
+                AppDurations.compact(progress.timeReading, l10n),
+              ),
               style: aside,
             ),
         ],

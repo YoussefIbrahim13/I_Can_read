@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:i_can_read/core/db/app_database.dart';
 import 'package:i_can_read/core/planning/plan_math.dart';
+import 'package:i_can_read/core/planning/reading_pace.dart';
 
 final _jan1 = DateTime(2026, 1, 1);
 const _hash =
@@ -608,6 +609,195 @@ void main() {
       );
 
       expect(await db.pagesReadOn('plan-1', DateTime(2026, 1, 8)), 10);
+    });
+  });
+
+  group('reading time', () {
+    test('adds up every sitting logged against the plan', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 600,
+      );
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-1',
+        fromPage: 11,
+        toPage: 20,
+        readAt: DateTime(2026, 1, 2),
+        durationSeconds: 900,
+      );
+
+      expect(
+        await db.readingTimeFor('plan-1'),
+        const Duration(minutes: 25),
+      );
+    });
+
+    test('a sitting logged without a clock counts as nothing, not as null',
+        () async {
+      await insertBook();
+      await insertPlan();
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+      );
+
+      expect(await db.readingTimeFor('plan-1'), Duration.zero);
+    });
+
+    test('a plan nobody has read is zero rather than an error', () async {
+      await insertBook();
+      await insertPlan();
+
+      expect(await db.readingTimeFor('plan-1'), Duration.zero);
+    });
+
+    test('another plan\'s reading does not leak into this one', () async {
+      await insertBook();
+      await insertPlan();
+      await insertBook(id: 'book-2', title: 'Other');
+      await insertPlan(id: 'plan-2', bookId: 'book-2');
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-2',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 1200,
+      );
+
+      expect(await db.readingTimeFor('plan-1'), Duration.zero);
+      expect(
+        await db.readingTimeFor('plan-2'),
+        const Duration(minutes: 20),
+      );
+    });
+  });
+
+  group('reading pace', () {
+    test('divides measured pages by the time they measurably took', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 600,
+      );
+
+      final pace = await db.watchReadingPace(planId: 'plan-1').first;
+
+      expect(pace.pages, 10);
+      expect(pace.time, const Duration(minutes: 10));
+      expect(pace.perPage, const Duration(minutes: 1));
+    });
+
+    test('a sitting nobody timed is left out of the page count too', () async {
+      await insertBook();
+      await insertPlan();
+
+      // Timed: ten pages, ten minutes.
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 600,
+      );
+      // Logged before the clock existed. Counting its pages against the ten
+      // minutes above would report the reader as twice as fast as they are.
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-1',
+        fromPage: 11,
+        toPage: 20,
+        readAt: DateTime(2026, 1, 2),
+      );
+
+      final pace = await db.watchReadingPace(planId: 'plan-1').first;
+
+      expect(pace.pages, 10);
+      expect(pace.perPage, const Duration(minutes: 1));
+    });
+
+    test('with no plan named, every book counts toward one speed', () async {
+      await insertBook();
+      await insertPlan();
+      await insertBook(id: 'book-2', title: 'Other');
+      await insertPlan(id: 'plan-2', bookId: 'book-2');
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 600,
+      );
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-2',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 1200,
+      );
+
+      final pace = await db.watchReadingPace().first;
+
+      expect(pace.pages, 20);
+      expect(pace.time, const Duration(minutes: 30));
+    });
+
+    test('a window ignores reading from before it', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        logId: 'old',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+        durationSeconds: 6000,
+      );
+      await db.recordReading(
+        logId: 'recent',
+        planId: 'plan-1',
+        fromPage: 11,
+        toPage: 20,
+        readAt: DateTime(2026, 1, 20),
+        durationSeconds: 600,
+      );
+
+      final pace = await db
+          .watchReadingPace(from: DateTime(2026, 1, 15))
+          .first;
+
+      expect(pace.pages, 10);
+      expect(pace.time, const Duration(minutes: 10));
+    });
+
+    test('a reader nobody has timed is unknown, not infinitely fast', () async {
+      await insertBook();
+      await insertPlan();
+
+      expect(await db.watchReadingPace().first, ReadingPace.unknown);
     });
   });
 

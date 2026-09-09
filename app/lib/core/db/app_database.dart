@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../planning/page_rescale.dart';
 import '../planning/plan_math.dart';
+import '../planning/reading_pace.dart';
 import '../sync/sync_mappers.dart';
 import '../sync/sync_models.dart';
 import 'tables.dart';
@@ -831,6 +832,57 @@ class AppDatabase extends _$AppDatabase {
       );
     final row = await query.getSingle();
     return row.read(total) ?? 0;
+  }
+
+  /// Every minute the reader has spent inside this plan, added up.
+  ///
+  /// Sittings are summed rather than kept as a running total on the plan: the
+  /// log already owns when reading happened, and a second copy of the same
+  /// number is a second thing that can be wrong. Sittings logged before the
+  /// clock existed count as zero, which is honest — nobody measured them.
+  Future<Duration> readingTimeFor(String planId) async {
+    final total = readingLog.durationSeconds.sum();
+    final query = selectOnly(readingLog)
+      ..addColumns([total])
+      ..where(readingLog.planId.equals(planId));
+    final row = await query.getSingle();
+    return Duration(seconds: row.read(total) ?? 0);
+  }
+
+  /// The reader's measured pace, for one plan or for the whole library.
+  ///
+  /// Sittings with a zero duration are excluded from *both* totals, not just
+  /// from the time. They are the ones logged before the clock existed, and
+  /// letting their pages through would divide a real number of seconds by an
+  /// inflated number of pages and report every reader as twice as fast as they
+  /// are. Excluding them makes the sample smaller and honest.
+  ///
+  /// [planId] null covers every book, which is what an estimate for today
+  /// wants: the reader has one reading speed, not one per book.
+  ///
+  /// [from] limits the sample to reading on or after that day, for the screens
+  /// that report a window rather than a lifetime.
+  Stream<ReadingPace> watchReadingPace({String? planId, DateTime? from}) {
+    final pages = readingLog.pagesRead.sum();
+    final seconds = readingLog.durationSeconds.sum();
+    final query = selectOnly(readingLog)
+      ..addColumns([pages, seconds])
+      ..where(
+        readingLog.durationSeconds.isBiggerThanValue(0) &
+            (planId == null
+                ? const Constant(true)
+                : readingLog.planId.equals(planId)) &
+            (from == null
+                ? const Constant(true)
+                : readingLog.readDate.isBiggerOrEqualValue(dateOnly(from))),
+      );
+
+    return query.watchSingle().map(
+      (row) => ReadingPace(
+        pages: row.read(pages) ?? 0,
+        time: Duration(seconds: row.read(seconds) ?? 0),
+      ),
+    );
   }
 
   // -------------------------------------------------------------------------

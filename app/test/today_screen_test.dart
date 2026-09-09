@@ -91,6 +91,32 @@ void main() {
     );
   }
 
+  /// Gives the pace a sample, without moving the plan's progress.
+  ///
+  /// Written straight into the log rather than through `recordReading`: these
+  /// sittings exist only to be measured, and advancing `lastPageRead` would
+  /// change the very portion the test is looking at.
+  Future<void> timedSitting(
+    String planId, {
+    required int pages,
+    required Duration took,
+  }) {
+    return db
+        .into(db.readingLog)
+        .insert(
+          ReadingLogCompanion.insert(
+            id: 'timed-$planId',
+            planId: planId,
+            readDate: _jan1,
+            fromPage: 1,
+            toPage: pages,
+            pagesRead: pages,
+            durationSeconds: Value(took.inSeconds),
+            createdAt: _jan1,
+          ),
+        );
+  }
+
   Future<void> pumpToday(WidgetTester tester, {Locale? locale}) async {
     semantics ??= tester.ensureSemantics();
 
@@ -133,6 +159,45 @@ void main() {
     expect(find.text('pages left'), findsOneWidget);
     expect(find.text('1–15'), findsOneWidget);
     expect(find.text('Read now'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('once the reader has been timed, the day says how long', (
+    tester,
+  ) async {
+    await addBook();
+    // Thirty pages in half an hour: a minute a page, so fifteen pages left
+    // is a quarter of an hour — on the hero and on the day card alike.
+    await timedSitting('plan-1', pages: 30, took: const Duration(minutes: 30));
+    await pumpToday(tester);
+
+    expect(find.text('about 15 minutes'), findsNWidgets(2));
+
+    await closeApp(tester);
+  });
+
+  testWidgets('an unmeasured reader is given no estimate to plan by', (
+    tester,
+  ) async {
+    await addBook();
+    await pumpToday(tester);
+
+    expect(find.textContaining('about'), findsNothing);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('the estimate counts what is left, not the whole portion', (
+    tester,
+  ) async {
+    await addBook();
+    await timedSitting('plan-1', pages: 30, took: const Duration(minutes: 30));
+    await readToday('plan-1', 1, 10);
+    await pumpToday(tester);
+
+    // Ten of fifteen done, so five minutes remain — not fifteen.
+    expect(find.text('about 5 minutes'), findsNWidgets(2));
 
     await closeApp(tester);
   });
@@ -231,6 +296,20 @@ void main() {
     expect(find.text('اقرأ دلوقتي'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
     expect(find.text('1–15'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('Arabic counts the estimate in duals, not in «2 دقيقة»', (
+    tester,
+  ) async {
+    await addBook(sessions: const [(20 * 60, 2)], pagesPerDay: 2);
+    // A minute a page, so a two-page session is «دقيقتين» — the dual, which a
+    // plural built only from one/other would get wrong.
+    await timedSitting('plan-1', pages: 30, took: const Duration(minutes: 30));
+    await pumpToday(tester, locale: const Locale('ar'));
+
+    expect(find.text('حوالي دقيقتين'), findsWidgets);
 
     await closeApp(tester);
   });

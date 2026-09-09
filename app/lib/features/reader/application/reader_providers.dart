@@ -36,11 +36,15 @@ class ProgressWriter {
   /// The reader hands over the page it is *showing*, which is the last page the
   /// reader has actually looked at — pages are credited on being reached, not
   /// on being turned past, so finishing on the last page of a portion counts.
+  /// [spent] is time with the book actually open, not wall time since the
+  /// reader was opened. Defaults to zero so a caller that does not measure
+  /// records nothing rather than a guess.
   Future<bool> record({
     required String planId,
     String? sessionId,
     required int fromPage,
     required int toPage,
+    Duration spent = Duration.zero,
   }) {
     return _db.recordReading(
       planId: planId,
@@ -48,6 +52,7 @@ class ProgressWriter {
       fromPage: fromPage,
       toPage: toPage,
       readAt: DateTime.now(),
+      durationSeconds: spent.inSeconds,
       logId: _uuid.v4(),
     );
   }

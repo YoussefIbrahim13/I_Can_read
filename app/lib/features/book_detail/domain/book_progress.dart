@@ -23,6 +23,7 @@ class BookProgress {
     required this.projectedEndDate,
     required this.schedule,
     required this.pausedAt,
+    this.timeReading = Duration.zero,
   });
 
   /// Pages of the plan's range that are done, clamped to the range.
@@ -43,6 +44,15 @@ class BookProgress {
 
   /// When the plan was paused, or null while it is running.
   final DateTime? pausedAt;
+
+  /// Measured time spent inside this book, across every sitting.
+  ///
+  /// Zero covers two different things — a book nobody has opened, and a book
+  /// read entirely before the app started timing — and the screen says nothing
+  /// in either case. Neither is a number worth printing.
+  final Duration timeReading;
+
+  bool get hasTimeReading => timeReading > Duration.zero;
 
   bool get isPaused => pausedAt != null;
 
@@ -68,8 +78,10 @@ BookProgress buildBookProgress({
   int pagesReadToday = 0,
   int pausedDays = 0,
   DateTime? pausedAt,
+  Duration timeReading = Duration.zero,
 }) {
   return BookProgress(
+    timeReading: timeReading,
     pagesRead: plan.pagesReadFrom(lastPageRead),
     totalPages: plan.totalPages,
     pagesPerDay: plan.pagesPerDay,

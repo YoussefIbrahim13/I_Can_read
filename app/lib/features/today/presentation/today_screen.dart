@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/format/app_dates.dart';
+import '../../../core/format/app_durations.dart';
+import '../../../core/planning/pace_providers.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
@@ -94,15 +96,21 @@ class _Agenda extends StatelessWidget {
 }
 
 /// The one thing the screen is asking for, inside a gold-edged card.
-class _HeroSession extends StatelessWidget {
+class _HeroSession extends ConsumerWidget {
   const _HeroSession({required this.entry});
 
   final TodayEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    // Null until the reader has been timed enough to be worth predicting from.
+    // The line simply is not there until then — an estimate the app is not
+    // sure of is worse than no estimate, because the reader would plan by it.
+    final estimate = ref
+        .watch(currentPaceProvider)
+        .estimateFor(entry.pagesLeft);
 
     return Container(
       decoration: BoxDecoration(
@@ -179,6 +187,15 @@ class _HeroSession extends StatelessWidget {
                         color: theme.appColors.muted,
                       ),
                     ),
+                    if (estimate != null)
+                      Text(
+                        l10n.todayEstimate(
+                          AppDurations.estimate(estimate, l10n),
+                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.appColors.muted,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -336,15 +353,36 @@ class _LaterRow extends StatelessWidget {
 }
 
 /// The whole day in one card: the split, drawn, and what it adds up to.
-class _AllOfToday extends StatelessWidget {
+class _AllOfToday extends ConsumerWidget {
   const _AllOfToday({required this.agenda});
 
   final TodayAgenda agenda;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+
+    // Only worth saying when the day is actually split; "1 session across
+    // 1 book" is the bar restated in words.
+    final across = agenda.entries.length > 1
+        ? l10n.todayAcross(
+            l10n.todaySessionCount(agenda.entries.length),
+            l10n.libraryBookCount(agenda.bookCount),
+          )
+        : null;
+
+    // What is *left*, not what the day holds: a reader halfway through wants
+    // to know how much longer, and the bar above already says how far along
+    // they are.
+    final remaining = agenda.pagesLeft > 0
+        ? ref.watch(currentPaceProvider).estimateFor(agenda.pagesLeft)
+        : null;
+    final footnote = [
+      ?across,
+      if (remaining != null)
+        l10n.todayEstimate(AppDurations.estimate(remaining, l10n)),
+    ].join(' · ');
 
     return Container(
       decoration: BoxDecoration(
@@ -384,15 +422,10 @@ class _AllOfToday extends StatelessWidget {
                 ),
             ],
           ),
-          // Only worth saying when the day is actually split; "1 session across
-          // 1 book" is the bar restated in words.
-          if (agenda.entries.length > 1) ...[
+          if (footnote.isNotEmpty) ...[
             const SizedBox(height: 7),
             Text(
-              l10n.todayAcross(
-                l10n.todaySessionCount(agenda.entries.length),
-                l10n.libraryBookCount(agenda.bookCount),
-              ),
+              footnote,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 10.5,
                 color: theme.appColors.muted,

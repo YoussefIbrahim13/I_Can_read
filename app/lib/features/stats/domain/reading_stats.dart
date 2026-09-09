@@ -7,6 +7,7 @@
 library;
 
 import '../../../core/planning/plan_math.dart';
+import '../../../core/planning/reading_pace.dart';
 
 /// One day in the pages-a-day chart.
 class StatsDay {
@@ -57,6 +58,7 @@ class ReadingStats {
     required this.averagePagesPerDay,
     required this.days,
     required this.finished,
+    this.pace = ReadingPace.unknown,
   });
 
   /// Consecutive days read, counting back from today.
@@ -70,6 +72,23 @@ class ReadingStats {
 
   /// Finished books, longest-ago start first is not useful — newest first.
   final List<FinishedBook> finished;
+
+  /// Time measured over the window, and what it says about the reader's speed.
+  ///
+  /// Time and pace travel together because they come from one sample: showing
+  /// a total the pace was not derived from would be two answers to the same
+  /// question.
+  final ReadingPace pace;
+
+  /// Time actually spent reading in the window.
+  Duration get timeRead => pace.time;
+
+  /// True once any reading in the window was timed at all.
+  ///
+  /// Lower than [ReadingPace.isKnown] on purpose: an hour spent reading is a
+  /// fact worth reporting after one sitting, while a pace derived from that
+  /// one sitting is a guess.
+  bool get hasTimeRead => pace.time > Duration.zero;
 
   int get finishedCount => finished.length;
 
@@ -90,6 +109,7 @@ ReadingStats buildReadingStats({
   required Map<DateTime, int> pagesByDay,
   required DateTime today,
   List<FinishedBookRecord> finished = const [],
+  ReadingPace pace = ReadingPace.unknown,
   int windowDays = 30,
 }) {
   final end = dateOnly(today);
@@ -108,6 +128,7 @@ ReadingStats buildReadingStats({
     averagePagesPerDay: _average(days),
     days: days,
     finished: _finished(finished),
+    pace: pace,
   );
 }
 

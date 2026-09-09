@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/app_dates.dart';
+import '../../../core/format/app_durations.dart';
+import '../../../core/planning/reading_pace.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
@@ -71,6 +73,13 @@ class _Stats extends StatelessWidget {
       ),
       children: [
         _Figures(stats: stats),
+        // Under the figures, not among them: time is something the reader
+        // spent rather than something they counted, and it does not want to
+        // be set at 46pt next to the three that do.
+        if (stats.hasTimeRead) ...[
+          const SizedBox(height: AppSpacing.x3),
+          _TimeAndPace(stats: stats),
+        ],
         const SizedBox(height: AppSpacing.x6 - 2),
         Kicker(l10n.statsPagesPerDay, color: Theme.of(context).appColors.muted),
         const SizedBox(height: AppSpacing.x3),
@@ -173,6 +182,39 @@ class _Figures extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Time spent, and the pace it implies, on one quiet line.
+///
+/// The pace only joins once enough pages have been timed to mean anything —
+/// see [ReadingPace.minimumPages]. Until then the line is just the total,
+/// which needs no sample size to be true.
+class _TimeAndPace extends StatelessWidget {
+  const _TimeAndPace({required this.stats});
+
+  final ReadingStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    final time = l10n.statsTimeRead(
+      AppDurations.compact(stats.timeRead, l10n),
+    );
+    final perPage = stats.pace.perPage;
+
+    return Text(
+      perPage == null
+          ? time
+          : '$time · ${l10n.statsPacePerPage(AppDurations.compact(perPage, l10n))}',
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        height: 1.6,
+        color: theme.appColors.muted,
       ),
     );
   }

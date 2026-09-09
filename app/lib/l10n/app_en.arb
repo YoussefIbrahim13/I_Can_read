@@ -135,6 +135,11 @@
   "@bookPausedSince": {
     "placeholders": { "date": { "type": "String" } }
   },
+  "bookTimeReading": "Time reading: {duration}",
+  "@bookTimeReading": {
+    "description": "Total measured time spent inside this book. Only shown once some reading has actually been timed.",
+    "placeholders": { "duration": { "type": "String" } }
+  },
   "bookReadingDays": "Reading days",
   "bookPause": "Pause",
   "bookResume": "Resume",
@@ -228,6 +233,15 @@
   "statsStreak": "days in a row",
   "statsAveragePages": "pages a day on average",
   "statsFinishedCount": "books finished",
+  "statsTimeRead": "{duration} with a book",
+  "@statsTimeRead": {
+    "description": "Total measured reading time over the window. Something the reader did, not a target they met.",
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "statsPacePerPage": "about {duration} a page",
+  "@statsPacePerPage": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
   "statsPagesPerDay": "Pages a day",
   "statsToday": "Today",
   "statsCalendar": "The days you read",
@@ -251,6 +265,11 @@
   "@todayPagesLeftLabel": {
     "description": "Sits under the large figure, which carries the number itself.",
     "placeholders": { "count": { "type": "int" } }
+  },
+  "todayEstimate": "about {duration}",
+  "@todayEstimate": {
+    "description": "How long the reading ahead should take at the reader's measured pace. Hedged on purpose — it is an estimate, not a deadline.",
+    "placeholders": { "duration": { "type": "String" } }
   },
   "todayPageRange": "pp. {range}",
   "@todayPageRange": {
@@ -322,6 +341,28 @@
   "progressProjectedEnd": "Projected finish: {date}",
   "@progressProjectedEnd": {
     "placeholders": { "date": { "type": "String" } }
+  },
+
+  "durationSeconds": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@durationSeconds": {
+    "description": "Assembled by AppDurations. Only ever used on its own, for a span under a minute.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@durationMinutes": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationHours": "{count, plural, =1{1 hour} other{{count} hours}}",
+  "@durationHours": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationHoursAndMinutes": "{hours} {minutes}",
+  "@durationHoursAndMinutes": {
+    "description": "Joins the two parts. Separate from the parts so each keeps its own plural, and so Arabic can put a conjunction between them.",
+    "placeholders": {
+      "hours": { "type": "String" },
+      "minutes": { "type": "String" }
+    }
   },
 
   "notificationTitle": "Time to read",
