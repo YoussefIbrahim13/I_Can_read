@@ -7,6 +7,7 @@ import '../../features/account/presentation/delete_account_screen.dart';
 import '../../features/account/presentation/password_reset_screen.dart';
 import '../../features/add_book/presentation/add_book_screen.dart';
 import '../../features/book_detail/presentation/book_detail_screen.dart';
+import '../../features/book_detail/presentation/reading_record_screen.dart';
 import '../../features/library/presentation/library_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/plan/presentation/plan_screen.dart';
@@ -106,6 +107,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/books/:id/plan/sessions',
         builder: (context, state) =>
             SessionsScreen(bookId: state.pathParameters['id']!),
+      ),
+      // Outside the shell like the rest of the book's screens: the reader came
+      // from one book's record and the way out is back to that book.
+      GoRoute(
+        path: '/books/:id/record',
+        builder: (context, state) =>
+            ReadingRecordScreen(bookId: state.pathParameters['id']!),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

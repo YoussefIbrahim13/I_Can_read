@@ -94,7 +94,20 @@ void main() {
     ]);
   }
 
-  Future<void> pumpDetail(WidgetTester tester, {Locale? locale}) async {
+  Future<void> pumpDetail(
+    WidgetTester tester, {
+    Locale? locale,
+    Size viewport = const Size(400, 1200),
+  }) async {
+    // A phone-height viewport rather than the 600px default. The screen is a
+    // lazy list, and since the record link was added under the calendar the
+    // action row sits below the fold — where it is never built and cannot be
+    // found at all. Same reason as stats_screen_test.dart.
+    tester.view.physicalSize = viewport * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     semantics ??= tester.ensureSemantics();
 
     await tester.pumpWidget(
@@ -208,6 +221,16 @@ void main() {
 
     // Zero would read as "you finished forty pages instantly".
     expect(find.textContaining('Time reading'), findsNothing);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('offers the record from under the calendar', (tester) async {
+    await addBook(lastPageRead: 40);
+    await pumpDetail(tester);
+
+    expect(find.text('READING DAYS'), findsOneWidget);
+    expect(find.text('Every portion, day by day'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -347,13 +370,8 @@ void main() {
   ) async {
     // 320dp is the narrowest width the app claims to support, and the action
     // row is the only place three controls share one line.
-    tester.view.physicalSize = const Size(320, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
-
     await addBook(lastPageRead: 40);
-    await pumpDetail(tester);
+    await pumpDetail(tester, viewport: const Size(320, 800));
 
     // An overflow would already have failed the pump; this pins the row down
     // as the thing being checked.

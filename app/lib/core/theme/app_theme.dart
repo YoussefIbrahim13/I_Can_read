@@ -10,9 +10,16 @@ import 'app_typography.dart';
 /// * **Elevation is a hairline, not a shadow.** Nothing casts a shadow except
 ///   the modal sheet, so every component gets `surfaceTintColor: transparent`
 ///   — otherwise M3 tints surfaces with `primary` as they "elevate".
-/// * **The primary action is an outline, not a fill.** [OutlinedButton] is the
-///   app's primary; [FilledButton] is restyled to match rather than left as a
-///   gold slab, so reaching for it out of habit cannot break the look.
+/// * **The primary action is an ink slab.** Redesign v2 reversed the original
+///   outline-only rule: the one committing action on a screen is a filled
+///   walnut-ink button with cream text ([FilledButton]), and [OutlinedButton]
+///   is the step down from it. The fill is *ink*, never gold — gold stays a
+///   stroke colour, so the accent never becomes a field.
+///
+/// Screens are being moved onto the v2 slab one at a time. Until a screen is
+/// converted its primary stays an [OutlinedButton] in gold, which still reads
+/// as primary on its own screen; what must not happen is a screen showing two
+/// competing primaries.
 abstract final class AppTheme {
   /// Both brightness and locale change the theme, and the locale is only known
   /// below `MaterialApp`, so themes are built on demand and cached. There are
@@ -110,27 +117,27 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      // Deliberately identical to the outlined button. There is no filled
-      // button in this design; this only stops habit from producing one.
+      // The v2 primary: a slab of walnut ink with cream text. 50 tall rather
+      // than 48 because it is the one control on the screen that should look
+      // committed to.
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           shape: const WidgetStatePropertyAll(shape),
-          backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
           elevation: const WidgetStatePropertyAll(0),
           textStyle: WidgetStatePropertyAll(text.labelLarge),
-          foregroundColor: WidgetStateProperty.resolveWith(
+          // Disabled loses opacity rather than turning grey — grey is exactly
+          // what v2 removed from the palette.
+          backgroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled)
-                ? colors.primary.withValues(alpha: 0.45)
-                : colors.primary,
+                ? colors.inverseSurface.withValues(alpha: 0.38)
+                : colors.inverseSurface,
           ),
-          side: WidgetStateProperty.resolveWith(
-            (states) => BorderSide(
-              color: states.contains(WidgetState.disabled)
-                  ? extras.accentStroke.withValues(alpha: 0.45)
-                  : extras.accentStroke,
-            ),
+          foregroundColor: WidgetStatePropertyAll(colors.onInverseSurface),
+          overlayColor: WidgetStatePropertyAll(
+            colors.onInverseSurface.withValues(alpha: 0.10),
           ),
+          side: const WidgetStatePropertyAll(BorderSide.none),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

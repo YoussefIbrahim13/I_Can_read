@@ -27,6 +27,20 @@ part 'app_database.g.dart';
     SyncOutbox,
   ],
 )
+/// One reading day of one plan, as the database folds it.
+///
+/// Deliberately a plain record rather than a domain class: the database's job
+/// is the grouping, and naming the result after a feature would point core at
+/// a screen. The book's record turns these into `ReadPortion`s.
+typedef LoggedDay = ({
+  DateTime day,
+  int fromPage,
+  int toPage,
+  int pages,
+  int seconds,
+  int sittings,
+});
+
 class AppDatabase extends _$AppDatabase {
   /// Pass an executor in tests; production uses the platform default.
   AppDatabase([QueryExecutor? executor])
@@ -882,6 +896,43 @@ class AppDatabase extends _$AppDatabase {
         pages: row.read(pages) ?? 0,
         time: Duration(seconds: row.read(seconds) ?? 0),
       ),
+    );
+  }
+
+  /// One plan's reading log, collapsed to a row a day, newest day first.
+  ///
+  /// Grouped in SQL rather than in Dart: a book read daily for a year is three
+  /// hundred rows the database can fold before they cross into memory, and the
+  /// screen only ever draws the folded version.
+  ///
+  /// Days with no reading are simply absent. They are not zero rows: the app
+  /// answers a missed day by moving the finish date, and a record that listed
+  /// every blank day would be a list of accusations.
+  Stream<List<LoggedDay>> watchPortionsFor(String planId) {
+    final first = readingLog.fromPage.min();
+    final last = readingLog.toPage.max();
+    final pages = readingLog.pagesRead.sum();
+    final seconds = readingLog.durationSeconds.sum();
+    final sittings = readingLog.id.count();
+
+    final query = selectOnly(readingLog)
+      ..addColumns([readingLog.readDate, first, last, pages, seconds, sittings])
+      ..where(readingLog.planId.equals(planId))
+      ..groupBy([readingLog.readDate])
+      ..orderBy([OrderingTerm.desc(readingLog.readDate)]);
+
+    return query.watch().map(
+      (rows) => [
+        for (final row in rows)
+          (
+            day: row.read(readingLog.readDate)!,
+            fromPage: row.read(first) ?? 0,
+            toPage: row.read(last) ?? 0,
+            pages: row.read(pages) ?? 0,
+            seconds: row.read(seconds) ?? 0,
+            sittings: row.read(sittings) ?? 0,
+          ),
+      ],
     );
   }
 

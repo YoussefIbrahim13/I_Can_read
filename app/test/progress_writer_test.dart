@@ -67,23 +67,23 @@ void main() {
     expect(await db.readingTimeFor('plan-1'), Duration.zero);
     // And the sitting is left out of the pace entirely, not counted as
     // fifteen pages read in no time at all.
-    expect(
-      (await db.watchReadingPace(planId: 'plan-1').first).pages,
-      0,
-    );
+    expect((await db.watchReadingPace(planId: 'plan-1').first).pages, 0);
   });
 
-  test('seconds survive the trip; a sitting is not rounded to whole minutes', () async {
-    await writer.record(
-      planId: 'plan-1',
-      fromPage: 1,
-      toPage: 15,
-      spent: const Duration(minutes: 3, seconds: 40),
-    );
+  test(
+    'seconds survive the trip; a sitting is not rounded to whole minutes',
+    () async {
+      await writer.record(
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 15,
+        spent: const Duration(minutes: 3, seconds: 40),
+      );
 
-    expect(
-      await db.readingTimeFor('plan-1'),
-      const Duration(minutes: 3, seconds: 40),
-    );
-  });
+      expect(
+        await db.readingTimeFor('plan-1'),
+        const Duration(minutes: 3, seconds: 40),
+      );
+    },
+  );
 }

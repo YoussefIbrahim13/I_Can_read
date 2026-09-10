@@ -202,9 +202,7 @@ class _TimeAndPace extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
-    final time = l10n.statsTimeRead(
-      AppDurations.compact(stats.timeRead, l10n),
-    );
+    final time = l10n.statsTimeRead(AppDurations.compact(stats.timeRead, l10n));
     final perPage = stats.pace.perPage;
 
     return Text(

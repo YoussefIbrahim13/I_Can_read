@@ -141,6 +141,38 @@
     "placeholders": { "duration": { "type": "String" } }
   },
   "bookReadingDays": "Reading days",
+  "bookSeeRecord": "Every portion, day by day",
+  "@bookSeeRecord": {
+    "description": "Opens the record from under the calendar on the book screen."
+  },
+  "recordTitle": "The record",
+  "recordEmpty": "Nothing here yet.",
+  "recordEmptyHint": "Once you've read a portion of this book, every day you read appears here with the pages and how long it took.",
+  "recordSummary": "{days} · {pages}",
+  "@recordSummary": {
+    "description": "Sits above the list: how many days were read and how many pages, both already localised and pluralised.",
+    "placeholders": {
+      "days": { "type": "String" },
+      "pages": { "type": "String" }
+    }
+  },
+  "recordDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@recordDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recordUntimed": "not timed",
+  "@recordUntimed": {
+    "description": "For a portion read before the app kept a clock. Says nobody measured it, rather than showing a zero."
+  },
+  "recordSittings": "{count, plural, =1{} other{{count} sittings}}",
+  "@recordSittings": {
+    "description": "Only shown when a day took more than one sitting; a single sitting is the norm and says nothing.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recordTotalTime": "{duration} in all",
+  "@recordTotalTime": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
   "bookPause": "Pause",
   "bookResume": "Resume",
   "bookMarkFinished": "I finished it",
@@ -253,6 +285,35 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "todayReadNow": "Read now",
+  "todayStartPortion": "Start your portion",
+  "@todayStartPortion": {
+    "description": "The Today call to action before any page of the portion has been read. Says 'your portion' rather than 'reading' because the portion is a fixed amount the reader already agreed to."
+  },
+  "todayResumeAt": "Resume at p. {page}",
+  "@todayResumeAt": {
+    "description": "The Today call to action once the portion is part-read. Naming the page makes it clear the app remembers where the reader stopped.",
+    "placeholders": { "page": { "type": "String" } }
+  },
+  "todayTapComb": "tap any mark",
+  "@todayTapComb": {
+    "description": "Sits opposite the session progress line, next to the comb. The comb is the only tappable figure on the page and nothing else signals it, so the hint is doing real work rather than decorating."
+  },
+  "todayRunningHead": "{title} — {author}",
+  "@todayRunningHead": {
+    "description": "The running head across the top of the Today page, in the manner of a printed book. Em dash separator.",
+    "placeholders": {
+      "title": { "type": "String" },
+      "author": { "type": "String" }
+    }
+  },
+  "todayFolio": "{page}/{total}",
+  "@todayFolio": {
+    "description": "The folio at the foot of the Today page: the page the reader is on, over the book's length.",
+    "placeholders": {
+      "page": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
   "todayDone": "Done",
   "todayRemaining": "{count} pages left today",
   "@todayRemaining": {

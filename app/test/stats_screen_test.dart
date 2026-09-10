@@ -176,7 +176,9 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('one short sitting is a total but not yet a pace', (tester) async {
+  testWidgets('one short sitting is a total but not yet a pace', (
+    tester,
+  ) async {
     await addBook(id: 'b1', title: 'The Muqaddimah');
     // Under ReadingPace.minimumPages: enough to report, too little to predict.
     await read('b1', 29, 4, from: 1, took: const Duration(minutes: 8));

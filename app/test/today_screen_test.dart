@@ -154,11 +154,34 @@ void main() {
 
     expect(find.text('THIS SESSION'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
+    // The book is named in the running head rather than as a standing title —
+    // on a page, the large figure is the subject.
     expect(find.text('The Muqaddimah'), findsOneWidget);
     expect(find.text('15'), findsWidgets);
     expect(find.text('pages left'), findsOneWidget);
     expect(find.text('1–15'), findsOneWidget);
-    expect(find.text('Read now'), findsOneWidget);
+    // Nothing read yet, so the action opens the portion rather than resuming.
+    expect(find.text('Start your portion'), findsOneWidget);
+    // The folio: where the reader stands, over the book's length.
+    expect(find.text('1/240'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('a part-read portion resumes at the page it stopped on', (
+    tester,
+  ) async {
+    await addBook();
+    await readToday('plan-1', 1, 6);
+    await pumpToday(tester);
+
+    expect(find.text('Resume at p. 7'), findsOneWidget);
+    expect(find.text('Start your portion'), findsNothing);
+    // The range and folio both move up to the resume point, so every number on
+    // the page agrees about where the reader is.
+    expect(find.text('7–15'), findsOneWidget);
+    expect(find.text('7/240'), findsOneWidget);
+    expect(find.text('6 of 15 this session'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -247,6 +270,10 @@ void main() {
     await readToday('plan-1', 1, 8);
     await pumpToday(tester);
 
+    // The v2 hero is a full page tall, so with three sessions the day card
+    // starts below the fold and the lazy list has not built it yet.
+    await tester.scrollUntilVisible(find.text('ALL OF TODAY'), 120);
+
     expect(find.text('ALL OF TODAY'), findsOneWidget);
     expect(find.text('8 of 23 pages done'), findsOneWidget);
     expect(find.text('3 sessions across 2 books'), findsOneWidget);
@@ -260,7 +287,8 @@ void main() {
     await pumpToday(tester);
 
     expect(find.text("Today's portion is done."), findsOneWidget);
-    expect(find.text('Read now'), findsNothing);
+    expect(find.text('Start your portion'), findsNothing);
+    expect(find.textContaining('Resume at'), findsNothing);
     expect(find.text('LATER TODAY'), findsNothing);
 
     await closeApp(tester);
@@ -293,9 +321,11 @@ void main() {
     await pumpToday(tester, locale: const Locale('ar'));
 
     expect(find.text('جلستك دي'), findsOneWidget);
-    expect(find.text('اقرأ دلوقتي'), findsOneWidget);
+    expect(find.text('ابدأ وردك'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
     expect(find.text('1–15'), findsOneWidget);
+    // The folio is a figure too, so it keeps western digits under Arabic.
+    expect(find.text('1/240'), findsOneWidget);
 
     await closeApp(tester);
   });

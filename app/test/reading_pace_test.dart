@@ -51,14 +51,17 @@ void main() {
       expect(_minute.estimateFor(-3), Duration.zero);
     });
 
-    test('a fast reader keeps a per-page figure instead of rounding to zero', () {
-      // Forty pages of plates in two minutes — three seconds a page. Dividing
-      // before multiplying would floor this to nothing.
-      const plates = ReadingPace(pages: 40, time: Duration(minutes: 2));
+    test(
+      'a fast reader keeps a per-page figure instead of rounding to zero',
+      () {
+        // Forty pages of plates in two minutes — three seconds a page. Dividing
+        // before multiplying would floor this to nothing.
+        const plates = ReadingPace(pages: 40, time: Duration(minutes: 2));
 
-      expect(plates.perPage, const Duration(seconds: 3));
-      expect(plates.estimateFor(15), const Duration(seconds: 45));
-    });
+        expect(plates.perPage, const Duration(seconds: 3));
+        expect(plates.estimateFor(15), const Duration(seconds: 45));
+      },
+    );
 
     test('rounds to the nearest second rather than truncating', () {
       // Three pages a hundred seconds: 33.33s a page.

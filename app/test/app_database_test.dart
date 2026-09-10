@@ -634,26 +634,25 @@ void main() {
         durationSeconds: 900,
       );
 
-      expect(
-        await db.readingTimeFor('plan-1'),
-        const Duration(minutes: 25),
-      );
+      expect(await db.readingTimeFor('plan-1'), const Duration(minutes: 25));
     });
 
-    test('a sitting logged without a clock counts as nothing, not as null',
-        () async {
-      await insertBook();
-      await insertPlan();
-      await db.recordReading(
-        logId: 'log-1',
-        planId: 'plan-1',
-        fromPage: 1,
-        toPage: 10,
-        readAt: _jan1,
-      );
+    test(
+      'a sitting logged without a clock counts as nothing, not as null',
+      () async {
+        await insertBook();
+        await insertPlan();
+        await db.recordReading(
+          logId: 'log-1',
+          planId: 'plan-1',
+          fromPage: 1,
+          toPage: 10,
+          readAt: _jan1,
+        );
 
-      expect(await db.readingTimeFor('plan-1'), Duration.zero);
-    });
+        expect(await db.readingTimeFor('plan-1'), Duration.zero);
+      },
+    );
 
     test('a plan nobody has read is zero rather than an error', () async {
       await insertBook();
@@ -678,10 +677,7 @@ void main() {
       );
 
       expect(await db.readingTimeFor('plan-1'), Duration.zero);
-      expect(
-        await db.readingTimeFor('plan-2'),
-        const Duration(minutes: 20),
-      );
+      expect(await db.readingTimeFor('plan-2'), const Duration(minutes: 20));
     });
   });
 
@@ -785,9 +781,7 @@ void main() {
         durationSeconds: 600,
       );
 
-      final pace = await db
-          .watchReadingPace(from: DateTime(2026, 1, 15))
-          .first;
+      final pace = await db.watchReadingPace(from: DateTime(2026, 1, 15)).first;
 
       expect(pace.pages, 10);
       expect(pace.time, const Duration(minutes: 10));
@@ -798,6 +792,155 @@ void main() {
       await insertPlan();
 
       expect(await db.watchReadingPace().first, ReadingPace.unknown);
+    });
+  });
+
+  group('the record', () {
+    test('folds a day of sittings into one row', () async {
+      await insertBook();
+      await insertPlan();
+
+      // Morning and evening of the same day, one portion between them.
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 6,
+        readAt: DateTime(2026, 1, 5, 8),
+        durationSeconds: 300,
+      );
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-1',
+        fromPage: 7,
+        toPage: 10,
+        readAt: DateTime(2026, 1, 5, 21),
+        durationSeconds: 240,
+      );
+
+      final days = await db.watchPortionsFor('plan-1').first;
+
+      expect(days, hasLength(1));
+      expect(days.single.day, DateTime(2026, 1, 5));
+      expect(days.single.fromPage, 1);
+      expect(days.single.toPage, 10);
+      expect(days.single.pages, 10);
+      expect(days.single.seconds, 540);
+      expect(days.single.sittings, 2);
+    });
+
+    test('newest day first, because that is what was just read', () async {
+      await insertBook();
+      await insertPlan();
+
+      for (final (index, day) in [3, 7, 5].indexed) {
+        await db.recordReading(
+          logId: 'log-$index',
+          planId: 'plan-1',
+          fromPage: index * 10 + 1,
+          toPage: index * 10 + 10,
+          readAt: DateTime(2026, 1, day, 21),
+        );
+      }
+
+      final days = await db.watchPortionsFor('plan-1').first;
+
+      expect(days.map((d) => d.day), [
+        DateTime(2026, 1, 7),
+        DateTime(2026, 1, 5),
+        DateTime(2026, 1, 3),
+      ]);
+    });
+
+    test('a day read before the clock existed carries no seconds', () async {
+      await insertBook();
+      await insertPlan();
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+      );
+
+      final days = await db.watchPortionsFor('plan-1').first;
+
+      expect(days.single.seconds, 0);
+      expect(days.single.pages, 10);
+    });
+
+    test('reading after midnight belongs to the day before', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 1,
+        toPage: 5,
+        readAt: DateTime(2026, 1, 5, 22),
+        durationSeconds: 300,
+      );
+      // 01:00, still the same sitting as far as the reader is concerned.
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-1',
+        fromPage: 6,
+        toPage: 10,
+        readAt: DateTime(2026, 1, 6, 1),
+        durationSeconds: 300,
+      );
+
+      final days = await db.watchPortionsFor('plan-1').first;
+
+      expect(days, hasLength(1));
+      expect(days.single.day, DateTime(2026, 1, 5));
+    });
+
+    test('another book\'s record stays out of this one', () async {
+      await insertBook();
+      await insertPlan();
+      await insertBook(id: 'book-2', title: 'Other');
+      await insertPlan(id: 'plan-2', bookId: 'book-2');
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-2',
+        fromPage: 1,
+        toPage: 10,
+        readAt: _jan1,
+      );
+
+      expect(await db.watchPortionsFor('plan-1').first, isEmpty);
+      expect(await db.watchPortionsFor('plan-2').first, hasLength(1));
+    });
+
+    test('a page read twice widens the range without inflating it', () async {
+      await insertBook();
+      await insertPlan();
+
+      await db.recordReading(
+        logId: 'log-1',
+        planId: 'plan-1',
+        fromPage: 20,
+        toPage: 29,
+        readAt: DateTime(2026, 1, 5, 8),
+      );
+      // Back over an earlier chapter, then on.
+      await db.recordReading(
+        logId: 'log-2',
+        planId: 'plan-1',
+        fromPage: 15,
+        toPage: 24,
+        readAt: DateTime(2026, 1, 5, 21),
+      );
+
+      final days = await db.watchPortionsFor('plan-1').first;
+
+      expect(days.single.fromPage, 15);
+      expect(days.single.toPage, 29);
+      // Twenty pages turned across a fifteen-page range.
+      expect(days.single.pages, 20);
     });
   });
 

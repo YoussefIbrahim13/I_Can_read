@@ -9,6 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
 import '../../../core/widgets/kicker.dart';
+import '../../../core/widgets/page_sheet.dart';
 import '../../../core/widgets/progress_shapes.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../../l10n/app_localizations.dart';
@@ -16,6 +17,11 @@ import '../application/today_providers.dart';
 import '../domain/today_agenda.dart';
 
 /// Screen 2 — one hero, the rest quiet.
+///
+/// Redesign v2 sets this screen as a **page** rather than a card: a ribbon
+/// falling from the top edge, a running head, the portion typeset large over a
+/// gutter shadow, and a folio at the foot. See `core/widgets/page_sheet.dart`
+/// for why.
 ///
 /// Lateness is never mentioned here. A portion missed yesterday simply appears
 /// as today's work; the only place the app states a slipped date is the book's
@@ -32,27 +38,44 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            ScreenHeader(
-              kicker: AppDates.weekdayAndDate(ref.watch(todayProvider), locale),
-              title: l10n.navToday,
-            ),
-            Expanded(
-              child: switch (agenda) {
-                null => const SizedBox.shrink(),
-                final agenda when agenda.isEmpty => EmptyState(
-                  title: l10n.todayEmpty,
-                  message: l10n.todayEmptyHint,
-                  action: OutlinedButton(
-                    onPressed: () => context.push('/books/add'),
-                    child: Text(l10n.addBook),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ScreenHeader(
+                  kicker: AppDates.weekdayAndDate(
+                    ref.watch(todayProvider),
+                    locale,
                   ),
+                  title: l10n.navToday,
                 ),
-                final agenda => _Agenda(agenda: agenda),
-              },
+                Expanded(
+                  child: switch (agenda) {
+                    null => const SizedBox.shrink(),
+                    final agenda when agenda.isEmpty => EmptyState(
+                      title: l10n.todayEmpty,
+                      message: l10n.todayEmptyHint,
+                      action: OutlinedButton(
+                        onPressed: () => context.push('/books/add'),
+                        child: Text(l10n.addBook),
+                      ),
+                    ),
+                    final agenda => _Agenda(agenda: agenda),
+                  },
+                ),
+              ],
             ),
+            // Hangs from the top edge, crossing the header to land on the page
+            // below it. Only when there is something to mark — a ribbon in a
+            // finished book is just a loose thread.
+            if (agenda?.current != null)
+              PositionedDirectional(
+                top: 0,
+                end: PageRibbon.inset,
+                child: const IgnorePointer(child: PageRibbon()),
+              ),
           ],
         ),
       ),
@@ -70,36 +93,72 @@ class _Agenda extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final later = agenda.later;
 
+    // The page sheet is the one thing that reaches past the text margin: it is
+    // paper the margin text sits on, so it cannot share that margin. Everything
+    // else is stepped back in by [_Margin] to the usual gutter.
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.gutter,
+        _sheetInset,
         AppSpacing.x4,
-        AppSpacing.gutter,
+        _sheetInset,
         AppSpacing.x6,
       ),
       children: [
         if (agenda.current case final current?)
           _HeroSession(entry: current)
         else
-          const _DoneForToday(),
+          const _Margin(child: _DoneForToday()),
         if (later.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.x6 - 4),
-          Kicker(l10n.todayLater, color: Theme.of(context).appColors.muted),
+          _Margin(
+            child: Kicker(
+              l10n.todayLater,
+              color: Theme.of(context).appColors.muted,
+            ),
+          ),
           const SizedBox(height: AppSpacing.x1 - 1),
-          for (final entry in later) _LaterRow(entry: entry),
+          for (final entry in later) _Margin(child: _LaterRow(entry: entry)),
         ],
         const SizedBox(height: AppSpacing.x6 - 8),
-        _AllOfToday(agenda: agenda),
+        _Margin(child: _AllOfToday(agenda: agenda)),
       ],
     );
   }
 }
 
-/// The one thing the screen is asking for, inside a gold-edged card.
+/// Where the page sheet's edge falls, 4px outside the text gutter.
+const _sheetInset = AppSpacing.gutter - 4;
+
+/// Steps a child back in from [_sheetInset] to the screen's text gutter.
+class _Margin extends StatelessWidget {
+  const _Margin({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.gutter - _sheetInset,
+    ),
+    child: child,
+  );
+}
+
+/// The one thing the screen is asking for, set as a page.
+///
+/// Running head at the top, the portion typeset large, the comb, the committing
+/// action, and a folio line at the foot — the furniture of a printed page, in
+/// the order a page uses it.
 class _HeroSession extends ConsumerWidget {
   const _HeroSession({required this.entry});
 
   final TodayEntry entry;
+
+  /// Opens the reader on this session's own stretch and nothing else.
+  void _read(BuildContext context, int page) => context.push(
+    '/books/${entry.bookId}/read'
+    '?from=${entry.fromPage}&to=${entry.toPage}&page=$page',
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -111,126 +170,120 @@ class _HeroSession extends ConsumerWidget {
     final estimate = ref
         .watch(currentPaceProvider)
         .estimateFor(entry.pagesLeft);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.appColors.muted,
+    );
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        // Half-strength gold: the card is the subject, but a full stroke around
-        // something this large stops reading as an accent and starts reading as
-        // a warning.
-        border: Border.all(
-          color: theme.appColors.accentStroke.withValues(alpha: .5),
-        ),
-        borderRadius: BorderRadius.circular(AppSpacing.radius),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
+    return PageSheet(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(child: Kicker(l10n.todayThisSession)),
-              Figure(
-                clockOf(entry),
-                size: 15,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ],
+          RunningHead(
+            title: entry.author == null
+                ? entry.title
+                : l10n.todayRunningHead(entry.title, entry.author!),
+            scope: l10n.todayThisSession,
           ),
-          const SizedBox(height: AppSpacing.x2 + 1),
-          Text(
-            entry.title,
-            style: theme.textTheme.titleMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (entry.author case final author?)
-            Text(
-              author,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.appColors.muted,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          const SizedBox(height: AppSpacing.x3),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // The number is the screen's loudest element by a wide margin:
               // this is the one figure the reader is meant to act on.
-              Figure.number(entry.pagesLeft, size: 54, height: .85),
-              const SizedBox(width: AppSpacing.x3 - 2),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.todayPagesLeftLabel(entry.pagesLeft),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    Text.rich(
-                      TextSpan(
-                        children: figureInSentence(
-                          l10n.todayPageRange(figureMarker),
-                          figureSpan(
-                            AppNumbers.range(entry.fromPage, entry.toPage),
-                            size: 12.5,
-                            color: theme.appColors.muted,
+              Figure.number(entry.pagesLeft, size: 76, height: .76),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.todayPagesLeftLabel(entry.pagesLeft),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 13.5,
+                        ),
+                      ),
+                      Text.rich(
+                        TextSpan(
+                          children: figureInSentence(
+                            l10n.todayPageRange(figureMarker),
+                            figureSpan(
+                              AppNumbers.range(entry.nextPage, entry.toPage),
+                              size: 12.5,
+                              color: theme.appColors.muted,
+                            ),
                           ),
                         ),
+                        style: muted,
                       ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.appColors.muted,
-                      ),
-                    ),
-                    if (estimate != null)
-                      Text(
-                        l10n.todayEstimate(
-                          AppDurations.estimate(estimate, l10n),
+                      if (estimate != null)
+                        Text(
+                          l10n.todayEstimate(
+                            AppDurations.estimate(estimate, l10n),
+                          ),
+                          style: muted,
                         ),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.appColors.muted,
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.x4),
+          const SizedBox(height: 16),
+          SessionComb(
+            pages: entry.pages,
+            pagesDone: entry.pagesDone,
+            onTapPage: (index) => _read(context, entry.fromPage + index),
+          ),
+          const SizedBox(height: 5),
           Row(
             children: [
               Expanded(
-                child: SessionRule(fraction: entry.pagesDone / entry.pages),
-              ),
-              const SizedBox(width: AppSpacing.x2),
-              Text(
-                l10n.todaySessionProgress(
-                  AppNumbers.format(entry.pagesDone),
-                  AppNumbers.format(entry.pages),
-                ),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 11,
-                  color: theme.appColors.muted,
+                child: Text(
+                  l10n.todaySessionProgress(
+                    AppNumbers.format(entry.pagesDone),
+                    AppNumbers.format(entry.pages),
+                  ),
+                  style: muted?.copyWith(fontSize: 11),
                 ),
               ),
+              Text(l10n.todayTapComb, style: muted?.copyWith(fontSize: 11)),
             ],
           ),
-          const SizedBox(height: AppSpacing.x4 - 3),
-          OutlinedButton(
-            // The reader is handed this session's own stretch and shows
-            // nothing else, opening on the first page not yet read —
-            // resuming mid-portion is the norm.
-            onPressed: () => context.push(
-              '/books/${entry.bookId}/read'
-              '?from=${entry.fromPage}&to=${entry.toPage}'
-              '&page=${entry.nextPage}',
+          const SizedBox(height: 18),
+          FilledButton(
+            // Opens on the first page not yet read — resuming mid-portion is
+            // the norm, so the button says where it will land.
+            onPressed: () => _read(context, entry.nextPage),
+            child: Text(
+              entry.pagesDone > 0
+                  ? l10n.todayResumeAt(AppNumbers.format(entry.nextPage))
+                  : l10n.todayStartPortion,
             ),
-            child: Text(l10n.todayReadNow),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  clockOf(entry),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    letterSpacing: 1.1,
+                    color: theme.appColors.muted,
+                  ),
+                ),
+              ),
+              Figure(
+                l10n.todayFolio(
+                  AppNumbers.format(entry.nextPage),
+                  AppNumbers.format(entry.bookEndPage),
+                ),
+                size: 12,
+                color: theme.appColors.muted,
+              ),
+            ],
           ),
         ],
       ),

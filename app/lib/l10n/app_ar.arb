@@ -141,6 +141,38 @@
     "placeholders": { "duration": { "type": "String" } }
   },
   "bookReadingDays": "أيام القراءة",
+  "bookSeeRecord": "كل الأوراد، يوم بيوم",
+  "@bookSeeRecord": {
+    "description": "Opens the record from under the calendar on the book screen."
+  },
+  "recordTitle": "سجل الأوراد",
+  "recordEmpty": "لسه مفيش حاجة هنا.",
+  "recordEmptyHint": "أول ما تقرأ ورد من الكتاب ده، هتلاقي هنا كل يوم قريت فيه، بصفحاته وبالوقت اللي أخده.",
+  "recordSummary": "{days} · {pages}",
+  "@recordSummary": {
+    "description": "Sits above the list: how many days were read and how many pages, both already localised and pluralised.",
+    "placeholders": {
+      "days": { "type": "String" },
+      "pages": { "type": "String" }
+    }
+  },
+  "recordDays": "{count, plural, one{يوم واحد} two{يومين} few{{count} أيام} many{{count} يوم} other{{count} يوم}}",
+  "@recordDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recordUntimed": "من غير وقت",
+  "@recordUntimed": {
+    "description": "For a portion read before the app kept a clock. Says nobody measured it, rather than showing a zero."
+  },
+  "recordSittings": "{count, plural, =1{} two{جلستين} few{{count} جلسات} many{{count} جلسة} other{{count} جلسة}}",
+  "@recordSittings": {
+    "description": "Only shown when a day took more than one sitting; a single sitting is the norm and says nothing.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recordTotalTime": "{duration} إجمالاً",
+  "@recordTotalTime": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
   "bookPause": "إيقاف مؤقت",
   "bookResume": "استئناف",
   "bookMarkFinished": "خلّصته",
@@ -253,6 +285,26 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "todayReadNow": "اقرأ دلوقتي",
+  "todayStartPortion": "ابدأ وردك",
+  "todayResumeAt": "كمّل من ص {page}",
+  "@todayResumeAt": {
+    "placeholders": { "page": { "type": "String" } }
+  },
+  "todayTapComb": "المس أي علامة",
+  "todayRunningHead": "{title} — {author}",
+  "@todayRunningHead": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "author": { "type": "String" }
+    }
+  },
+  "todayFolio": "{page}/{total}",
+  "@todayFolio": {
+    "placeholders": {
+      "page": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
   "todayDone": "تم",
   "todayRemaining": "فاضل {count} صفحة النهارده",
   "@todayRemaining": {

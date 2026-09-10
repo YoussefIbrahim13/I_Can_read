@@ -1,17 +1,22 @@
 /// Three scopes, three shapes — the rule this file exists to enforce.
 ///
 /// A reader must never see the same shape mean two things, so progress is
-/// drawn by three separate widgets rather than one parameterised bar:
+/// drawn by separate widgets rather than one parameterised bar:
 ///
 /// * [SessionRule] — *this session*. A gold hairline filling from the inline
 ///   start.
+/// * [SessionComb] — *this session*, at page resolution. Redesign v2's Today
+///   hero. Same scope as [SessionRule]; the rule is that one shape must not
+///   mean two scopes, not that one scope gets only one shape. The comb is used
+///   where the session **is** the subject and the reader can act on individual
+///   pages; the rule is used where progress is a footnote, such as the reader's
+///   own footer, where a comb would compete with the text.
 /// * [TodayBar]    — *today*. One segment per session, so the split is visible.
 /// * [BookRule]    — *the whole book*. A thicker ink rule, paired with a
 ///   percentage in Cormorant figures.
 ///
-/// Keeping them as three named widgets is what stops the scopes being
-/// conflated later. Do not add a `style` parameter that lets one become
-/// another.
+/// Keeping them as named widgets is what stops the scopes being conflated
+/// later. Do not add a `style` parameter that lets one become another.
 library;
 
 import 'package:flutter/material.dart';
@@ -38,6 +43,79 @@ class SessionRule extends StatelessWidget {
             widthFactor: fraction.clamp(0.0, 1.0),
             child: ColoredBox(color: colors.accentStroke),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Session scope at page resolution: one tick per page in the portion, ink for
+/// pages already read and gold at 58% height for those still ahead.
+///
+/// Reading it is immediate in a way a percentage is not — twelve marks, five
+/// filled, and the reader knows the shape of what is left without doing any
+/// arithmetic. Tapping a tick opens the reader at that page.
+class SessionComb extends StatelessWidget {
+  const SessionComb({
+    required this.pages,
+    required this.pagesDone,
+    this.onTapPage,
+    super.key,
+  });
+
+  /// Ticks drawn. A portion of zero pages renders nothing rather than an empty
+  /// track, because there is no session to describe.
+  final int pages;
+  final int pagesDone;
+
+  /// Passed the 0-based index of the tapped page within the portion.
+  final ValueChanged<int>? onTapPage;
+
+  /// The drawn height of a fully-read tick.
+  static const _barHeight = 38.0;
+
+  /// Pages still ahead are drawn short, so the read run reads as a solid block.
+  static const _unreadFraction = 0.58;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pages < 1) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final done = pagesDone.clamp(0, pages);
+
+    return SizedBox(
+      // Taller than the bars so each tick clears the 44px tap target while the
+      // drawn comb stays 38.
+      height: AppSpacing.minTapTarget,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < pages; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onTapPage == null ? null : () => onTapPage!(i),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    height: i < done
+                        ? _barHeight
+                        : _barHeight * _unreadFraction,
+                    decoration: BoxDecoration(
+                      color: i < done
+                          ? theme.colorScheme.onSurface
+                          : theme.appColors.accentStroke,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

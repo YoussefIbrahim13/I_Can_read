@@ -6,6 +6,7 @@ import '../../../core/planning/plan_math.dart';
 import '../../sessions/application/sessions_providers.dart';
 import '../../today/application/today_providers.dart';
 import '../domain/book_progress.dart';
+import '../domain/read_portions.dart';
 
 /// Pages read today for one plan, to credit against today's portion.
 final _pagesReadTodayProvider = StreamProvider.autoDispose.family<int, String>((
@@ -40,12 +41,13 @@ const heatmapColumnCount = 10;
 /// Not windowed like the calendar above: this is the reader's total with the
 /// book, and a ختمة that took four months should say so rather than reporting
 /// only the part of it that fits on a grid.
-final _timeReadingProvider = StreamProvider.autoDispose.family<Duration, String>(
-  (ref, planId) => ref
-      .watch(appDatabaseProvider)
-      .watchReadingPace(planId: planId)
-      .map((pace) => pace.time),
-);
+final _timeReadingProvider = StreamProvider.autoDispose
+    .family<Duration, String>(
+      (ref, planId) => ref
+          .watch(appDatabaseProvider)
+          .watchReadingPace(planId: planId)
+          .map((pace) => pace.time),
+    );
 
 /// Where a book stands, ready to draw.
 ///
@@ -95,6 +97,31 @@ final bookHeatmapProvider = Provider.autoDispose
         pagesPerDay: plan.pagesPerDay,
         columns: heatmapColumnCount,
       );
+    });
+
+/// One book's record: every day it was read, newest first.
+///
+/// Keyed by plan rather than by book because the log hangs off the plan, and
+/// autoDispose because a reader who opens the record of a long ختمة should not
+/// leave that query alive behind them for the rest of the session.
+final readingRecordProvider = StreamProvider.autoDispose
+    .family<ReadingRecord, String>((ref, planId) {
+      return ref
+          .watch(appDatabaseProvider)
+          .watchPortionsFor(planId)
+          .map(
+            (days) => ReadingRecord([
+              for (final day in days)
+                ReadPortion(
+                  day: day.day,
+                  fromPage: day.fromPage,
+                  toPage: day.toPage,
+                  pages: day.pages,
+                  time: Duration(seconds: day.seconds),
+                  sittings: day.sittings,
+                ),
+            ]),
+          );
     });
 
 /// The things the detail screen can do to a book.

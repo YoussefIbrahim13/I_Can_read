@@ -294,6 +294,15 @@ class _ReadingDays extends ConsumerWidget {
         Kicker(l10n.bookReadingDays, color: colors.muted),
         const SizedBox(height: AppSpacing.x2 + 2),
         ReadingCalendarGrid(columns: ref.watch(bookHeatmapProvider(plan))),
+        // Under the grid, because it is the same question asked in detail:
+        // the squares say which days, the record says what was in them.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            onPressed: () => context.push('/books/${plan.bookId}/record'),
+            child: Text(l10n.bookSeeRecord),
+          ),
+        ),
       ],
     );
   }

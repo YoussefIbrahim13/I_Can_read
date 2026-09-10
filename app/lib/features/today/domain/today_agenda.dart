@@ -60,6 +60,7 @@ class TodayEntry {
     required this.fromPage,
     required this.toPage,
     required this.pagesDone,
+    required this.bookEndPage,
     required this.state,
   });
 
@@ -78,6 +79,11 @@ class TodayEntry {
 
   /// How much of that stretch is already read.
   final int pagesDone;
+
+  /// The last page of the *plan*, which is where the book ends as far as the
+  /// reader is concerned. Only the folio uses it — "393/840" needs a
+  /// denominator, and the session's own range cannot supply one.
+  final int bookEndPage;
 
   final SessionState state;
 
@@ -99,6 +105,7 @@ class TodayEntry {
     fromPage: fromPage,
     toPage: toPage,
     pagesDone: pagesDone,
+    bookEndPage: bookEndPage,
     state: next,
   );
 
@@ -189,6 +196,7 @@ TodayAgenda buildTodayAgenda(Iterable<TodayBook> books) {
           fromPage: next,
           toPage: to,
           pagesDone: done,
+          bookEndPage: plan.endPage,
           // Filled in below, once the whole day is in time order.
           state: done == to - next + 1
               ? SessionState.done

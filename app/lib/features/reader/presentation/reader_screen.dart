@@ -125,8 +125,7 @@ class _Reader extends ConsumerStatefulWidget {
   ConsumerState<_Reader> createState() => _ReaderState();
 }
 
-class _ReaderState extends ConsumerState<_Reader>
-    with WidgetsBindingObserver {
+class _ReaderState extends ConsumerState<_Reader> with WidgetsBindingObserver {
   final _controller = PdfViewerController();
 
   /// Time the book has actually been in front of the reader this sitting.
@@ -262,9 +261,7 @@ class _ReaderState extends ConsumerState<_Reader>
     // A scanned page with no OCR layer yields nothing. Saying so beats a
     // "copied" that leaves the reader pasting emptiness into a note.
     if (text.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.readerPageHasNoText)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(l10n.readerPageHasNoText)));
       return;
     }
 
