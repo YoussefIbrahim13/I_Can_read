@@ -1,0 +1,4 @@
+{
+  "//": "The deployed server, passed with --dart-define-from-file so the address is recorded once here instead of retyped into every build command. Committed on purpose: it is a public URL, not a secret, and a release build that guesses it wrong is the failure this file exists to prevent. See the README.",
+  "API_BASE_URL": "https://i-can-read-api.onrender.com"
+}

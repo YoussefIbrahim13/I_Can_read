@@ -1,9 +1,24 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:i_can_read/core/config/api_config.dart';
 
 void main() {
   String resolve(String? value, {bool isRelease = false}) =>
       ApiConfig.resolve(value: value, isRelease: isRelease);
+
+  test('the deployed address in config/render.json is one we accept', () {
+    // That file is what release builds are pointed at, and the rules below are
+    // enforced at startup — so a typo in it (plaintext, a stray query string, a
+    // trailing slash) would surface as an app that will not open, on a phone,
+    // after shipping. Cheaper to find here.
+    final config =
+        jsonDecode(File('config/render.json').readAsStringSync()) as Map;
+    final url = config['API_BASE_URL'] as String;
+
+    expect(resolve(url, isRelease: true), url);
+  });
 
   group('when nothing was supplied', () {
     test('a development build falls back to the emulator loopback', () {

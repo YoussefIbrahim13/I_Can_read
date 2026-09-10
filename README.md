@@ -93,6 +93,17 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.20:5000
 flutter build apk --dart-define=API_BASE_URL=https://api.example.com
 ```
 
+The deployed server's address is recorded in `app/config/render.json` rather
+than retyped, so the two commands that matter are:
+
+```sh
+flutter run              --dart-define-from-file=config/render.json
+flutter build apk        --dart-define-from-file=config/render.json
+```
+
+It is a compile-time constant, so a hot restart will not pick up a change to
+it — the whole `flutter run` has to go round again.
+
 Omitted, a debug build falls back to `http://10.0.2.2:5203` — the Android
 emulator's alias for the machine running `dotnet run` — so local work needs no
 flag. Omitted in a **release** build the app refuses to start, on the same
