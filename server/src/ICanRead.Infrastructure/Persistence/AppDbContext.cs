@@ -1,5 +1,6 @@
 using ICanRead.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ICanRead.Infrastructure.Persistence;
 
@@ -14,6 +15,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ReadingSession> ReadingSessions => Set<ReadingSession>();
     public DbSet<ReadingLogEntry> ReadingLog => Set<ReadingLogEntry>();
 
+    /// <summary>
+    /// Every instant is normalised to UTC on its way to the database.
+    /// </summary>
+    /// <remarks>
+    /// Npgsql refuses outright to write a <see cref="DateTimeOffset"/> whose
+    /// offset is not zero to <c>timestamp with time zone</c> — it throws rather
+    /// than converting. Everything this server writes itself already comes from
+    /// <c>GetUtcNow</c>, but the timestamps in a sync push come from a phone,
+    /// and "the client always sends Z" is a promise made by other code on
+    /// another machine. One device shipping a local offset would turn every
+    /// push into a 500.
+    ///
+    /// The conversion is exact — the same instant, expressed against UTC — so
+    /// nothing is rounded or reinterpreted, and the store type does not change.
+    /// </remarks>
+    protected override void ConfigureConventions(ModelConfigurationBuilder builder)
+    {
+        builder.Properties<DateTimeOffset>()
+            .HaveConversion<UtcOffsetConverter>();
+    }
+
+    private sealed class UtcOffsetConverter()
+        : ValueConverter<DateTimeOffset, DateTimeOffset>(
+            written => written.ToUniversalTime(),
+            read => read);
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<User>(e =>
@@ -27,11 +54,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(u => u.Email).IsUnique();
             e.Property(u => u.PasswordHash).HasMaxLength(256);
             e.Property(u => u.GoogleSubject).HasMaxLength(128);
-            // Filtered: accounts with no Google link are all NULL, and SQL
-            // Server treats NULLs as equal in a unique index without this.
+            // Partial, because accounts with no Google link are all NULL and
+            // there is no reason to index them. Postgres already treats NULLs
+            // as distinct in a unique index, so this is about the size of the
+            // index rather than about correctness. Quoted because Postgres
+            // folds unquoted identifiers to lower case and the column is
+            // PascalCase.
             e.HasIndex(u => u.GoogleSubject)
                 .IsUnique()
-                .HasFilter("[GoogleSubject] IS NOT NULL");
+                .HasFilter("\"GoogleSubject\" IS NOT NULL");
             e.Property(u => u.DisplayName).HasMaxLength(200);
         });
 

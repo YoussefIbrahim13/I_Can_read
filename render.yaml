@@ -1,0 +1,67 @@
+# Render blueprint for the sync API. `server/README.md` walks through the first
+# deploy; this file is the part Render reads.
+#
+# The Flutter app is not here. It ships as an APK built with
+# --dart-define=API_BASE_URL=https://<this service>.onrender.com, so it is a
+# build-time decision on the client, not a service to host.
+
+services:
+  - type: web
+    name: i-can-read-api
+    runtime: docker
+    # The context is `server/`, not the repo root: the app half of this
+    # repository is several hundred megabytes of Flutter and none of it belongs
+    # in the build.
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    # Closest region to the readers this is being built for.
+    region: frankfurt
+    plan: free
+    # /health touches nothing and needs no token, so a failing check means the
+    # process is genuinely down rather than that the database is slow.
+    healthCheckPath: /health
+    envVars:
+      # Explicit, though it is also the framework default. Development turns on
+      # crutches this server must not have — reset codes printed to the console
+      # instead of emailed, and a widened clock tolerance on Google's tokens.
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Arrives as postgresql://user:password@host:port/database, which Npgsql
+      # cannot parse. Program.cs translates it.
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: i-can-read-db
+          property: connectionString
+
+      # Generated once, by Render, and never in this repository. Rotating it
+      # signs every reader out, because it invalidates every token already
+      # issued — so treat it as permanent. Startup refuses anything under 32
+      # bytes; if the generated value is ever shorter than that, replace it by
+      # hand with a longer one.
+      - key: Jwt__SigningKey
+        generateValue: true
+
+      # The SMTP account password resets are sent from. `sync: false` means
+      # Render asks for these in the dashboard on first deploy rather than
+      # reading them from here — they are secrets and this file is committed.
+      # The server refuses to start without all three, because an account that
+      # cannot be recovered is a library lost.
+      - key: EmailSettings__SmtpServer
+        sync: false
+      - key: EmailSettings__SenderEmail
+        sync: false
+      - key: EmailSettings__Password
+        sync: false
+
+databases:
+  - name: i-can-read-db
+    databaseName: icanread
+    region: frankfurt
+    # Free Postgres on Render is deleted after 30 days, and there is no way to
+    # extend it — moving to a paid plan before then is the only path that keeps
+    # the data. Nothing in the app depends on the server, so losing it costs
+    # sync rather than anybody's library, but it does cost every account.
+    plan: free
+    # Matches the container development and the tests run against.
+    postgresMajorVersion: "17"

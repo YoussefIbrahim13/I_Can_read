@@ -13,22 +13,26 @@ using Microsoft.Extensions.Hosting;
 namespace ICanRead.Tests;
 
 /// <summary>
-/// The real API, on a real SQL Server, on a database of its own.
+/// The real API, on a real Postgres, on a database of its own.
 /// </summary>
 /// <remarks>
 /// Deliberately not SQLite or the in-memory provider. The schema leans on
-/// things only the real provider does the same way — a filtered unique index on
+/// things only the real provider does the same way — a partial unique index on
 /// GoogleSubject, <c>DateOnly</c> mapping, <c>ExecuteUpdateAsync</c> — and a
 /// test that passes against a substitute would not tell us the migration works.
 ///
-/// Requires the local <c>.\SQLEXPRESS01</c> instance, the same one development
-/// runs against.
+/// Requires the local Postgres container, the same one development runs
+/// against:
+/// <code>
+/// docker run -d --name icanread-pg -e POSTGRES_PASSWORD=devpassword \
+///   -p 5433:5432 postgres:17
+/// </code>
 /// </remarks>
 public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private const string ConnectionString =
-        "Server=.\\SQLEXPRESS01;Database=ICanRead_Test;Integrated Security=true;" +
-        "TrustServerCertificate=true;MultipleActiveResultSets=true";
+        "Host=localhost;Port=5433;Database=ICanRead_Test;" +
+        "Username=postgres;Password=devpassword";
 
     /// <summary>Every message the API tried to send, in place of a mail provider.</summary>
     public RecordingEmailSender Mail { get; } = new();
@@ -56,7 +60,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
-            services.AddDbContext<AppDbContext>(o => o.UseSqlServer(ConnectionString));
+            services.AddDbContext<AppDbContext>(o => o.UseNpgsql(ConnectionString));
 
             services.RemoveAll<IGoogleTokenVerifier>();
             services.AddScoped<IGoogleTokenVerifier, StubGoogleTokenVerifier>();

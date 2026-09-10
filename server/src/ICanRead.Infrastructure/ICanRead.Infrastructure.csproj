@@ -11,8 +11,21 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <!-- Pins the EF Core version for everything downstream. The SQL Server
+         provider used to do this by arriving at 10.0.11; Npgsql asks only for
+         10.0.4, and without a floor here the test project compiled against that
+         older assembly while Infrastructure had been built against the newer
+         one. Design is PrivateAssets and cannot pin anything past this project. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- TokenService signs the JWTs here. Referenced explicitly because it used
+         to arrive transitively through the SQL Server provider, by way of
+         Microsoft.Data.SqlClient and Azure.Identity, and swapping that provider
+         for Npgsql took it away. Pinned to the version the API's JwtBearer
+         package already resolves, so both halves of the token flow — minting
+         and validating — agree on one library. -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
   </ItemGroup>
 
   <PropertyGroup>

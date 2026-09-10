@@ -7,6 +7,7 @@ using ICanRead.Infrastructure.Auth;
 using ICanRead.Infrastructure.Email;
 using ICanRead.Infrastructure.Persistence;
 using ICanRead.Infrastructure.Sync;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,6 +17,15 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The host assigns the port and expects the service to answer on exactly it —
+// Render's default is 10000, but it is the variable that decides, not the
+// number. Binding 0.0.0.0 rather than localhost is what makes the container
+// reachable from outside itself. Absent locally, where launchSettings decides.
+if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port)
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 // No OpenAPI document. `Microsoft.AspNetCore.OpenApi` pulls in Microsoft.OpenApi
 // 2.x, whose whole line currently carries a high-severity advisory
 // (GHSA-v5pm-xwqc-g5wc), and 3.x does not compile against the ASP.NET Core 10
@@ -23,8 +33,22 @@ var builder = WebApplication.CreateBuilder(args);
 // so a generated document buys nothing worth a flagged dependency. Re-add it
 // when a patched 2.x ships.
 
+// A managed host publishes its database as a URL, which Npgsql cannot parse;
+// `PostgresConnectionString` translates that and passes a keyword string
+// through untouched. DATABASE_URL is the name Render and most of its
+// neighbours use, and is read as a fallback so the image runs on a host that
+// sets only that.
+var database = builder.Configuration.GetConnectionString("Default")
+               ?? builder.Configuration["DATABASE_URL"];
+
+if (string.IsNullOrWhiteSpace(database))
+{
+    throw new InvalidOperationException(
+        "No database configured. Set ConnectionStrings__Default or DATABASE_URL.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(PostgresConnectionString.FromUrlOrKeywords(database)));
 
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.Section))
@@ -140,7 +164,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
+// Behind a platform proxy every request arrives from the proxy's own address,
+// and the rate limiter above keys on the caller's. Without this, one bucket of
+// ten requests a minute would be shared by every reader on the deployment, and
+// the first person to mistype a password would lock out the rest.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // The proxies sit on addresses we are not told in advance, so there is no
+    // list to check them against. Emptying both collections is what turns that
+    // check off — left at their defaults, which trust loopback only, the
+    // middleware would ignore the header entirely and we would be back to
+    // every reader sharing one bucket.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+
+    // Walk the chain to the front, which is the address the caller claims.
+    // Render appends to X-Forwarded-For rather than replacing it, so that
+    // address is only as honest as the caller: the limit is a speed bump in
+    // front of a script working through six digits, not a defence against
+    // someone who knows to rotate the header. See the README.
+    options.ForwardLimit = null;
+});
+
 var app = builder.Build();
+
+// Bring the schema up to date before serving anything. A managed host gives no
+// shell to run `dotnet ef database update` from, and the alternative — a new
+// deploy answering requests against last week's schema — is worse than what
+// this costs. What it costs is that two instances starting at once would
+// migrate at once; this service runs as one.
+using (var scope = app.Services.CreateScope())
+{
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>()
+        .Database.MigrateAsync();
+}
+
+// Ahead of the rate limiter, which needs the forwarded address rather than the
+// proxy's to have been resolved by the time it picks a bucket.
+app.UseForwardedHeaders();
 
 app.UseRateLimiter();
 app.UseAuthentication();

@@ -1,0 +1,19 @@
+# Build output from the host. Copying it in would put Debug assemblies next to
+# the Release ones the image publishes, and invalidate the layer cache on every
+# local build.
+**/bin/
+**/obj/
+
+# Local secrets: the signing key and the SMTP password live here, and a
+# deployment supplies both through the environment instead. Ignored by git too,
+# but the Docker context does not read .gitignore.
+**/appsettings.Development.json
+**/*.user
+
+# Not part of the server build.
+tests/
+
+.git/
+.vs/
+.vscode/
+.idea/

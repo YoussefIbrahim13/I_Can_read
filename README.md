@@ -29,7 +29,7 @@ Phase 1 (offline-only app) is in progress. No account or server yet.
 | Today (the day's portion across every book) | Done, 14 unit + 8 widget tests |
 | Reader, restricted to the day's portion | Done, 16 unit + 5 on-device tests |
 | Book detail, stats | Not started |
-| Account + sync (.NET 10 + SQL Server) | Phase 2 |
+| Account + sync (.NET 10 + PostgreSQL) | Phase 2 |
 
 ### Sample books for manual testing
 
