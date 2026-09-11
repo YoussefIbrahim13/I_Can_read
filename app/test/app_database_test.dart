@@ -347,6 +347,39 @@ void main() {
     });
   });
 
+  group('the bookmark', () {
+    test('a book never opened has no page to go back to', () async {
+      await insertBook();
+      expect(await db.lastPageOpen('book-1'), isNull);
+    });
+
+    test('reopening lands on the page the book was left on', () async {
+      await insertBook();
+      await db.rememberLastPage(bookId: 'book-1', page: 42, now: _jan1);
+
+      expect(await db.lastPageOpen('book-1'), 42);
+    });
+
+    test('it moves backwards as happily as forwards', () async {
+      // Unlike progress, which only ever advances. A reader who turns back to
+      // the start of a chapter wants to reopen there, not where they had got
+      // to before they did.
+      await insertBook();
+      await db.rememberLastPage(bookId: 'book-1', page: 42, now: _jan1);
+      await db.rememberLastPage(bookId: 'book-1', page: 12, now: _jan1);
+
+      expect(await db.lastPageOpen('book-1'), 12);
+    });
+
+    test('deleting the book takes its bookmark with it', () async {
+      await insertBook();
+      await db.rememberLastPage(bookId: 'book-1', page: 42, now: _jan1);
+      await db.deleteBook('book-1', _jan1);
+
+      expect(await db.lastPageOpen('book-1'), isNull);
+    });
+  });
+
   group('library shelves', () {
     test('soft-deleted books disappear from their shelf', () async {
       await insertBook();

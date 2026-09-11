@@ -16,6 +16,8 @@
   "actionRetry": "إعادة المحاولة",
   "actionDelete": "حذف",
 
+  "percentSign": "٪",
+
   "addBook": "إضافة كتاب",
   "pickPdfFile": "اختر ملف PDF",
   "importCopying": "جارٍ نسخ الملف…",
@@ -59,7 +61,17 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "libraryLocateFile": "حدّد الملف",
-  "libraryNoPlanYet": "لسه مفيش خطة — حدّد هدفك",
+  "libraryNoPlanYet": "الكتاب ده لسه من غير خطة.",
+  "libraryPickGoal": "حدّد هدفك",
+  "libraryBookDetails": "تفاصيل الكتاب",
+  "libraryNothingDue": "مفيش ورد النهارده.",
+  "libraryTodayPortion": "النهارده: ص {range} · {pages}",
+  "@libraryTodayPortion": {
+    "placeholders": {
+      "range": { "type": "String" },
+      "pages": { "type": "String" }
+    }
+  },
   "libraryReadOfTotal": "{read} من {total} صفحة",
   "@libraryReadOfTotal": {
     "placeholders": {
@@ -194,6 +206,18 @@
   "planPageFewer": "صفحة أقل",
   "planPagesPerDayMore": "صفحة في اليوم أكتر",
   "planPagesPerDayFewer": "صفحة في اليوم أقل",
+  "planDaysMore": "يوم زيادة",
+  "planDaysFewer": "يوم أقل",
+  "planSpanSection": "مدى الختمة",
+  "planSpanRange": "من صفحة {from} إلى {to}",
+  "@planSpanRange": {
+    "placeholders": {
+      "from": { "type": "int" },
+      "to": { "type": "int" }
+    }
+  },
+  "planSliderHint": "حرّك المؤشّر — التاريخ ومدى الختمة يتحسبوا لوحدهم.",
+  "planMissedDayNote": "لو فاتك يوم، الورد اليومي يفضل زي ما هو بالظبط. اللي بيتحرّك هو تاريخ الانتهاء بس.",
   "planPreview": "هتقرأ {pages} صفحة يومياً وتخلّص يوم {date}.",
   "@planPreview": {
     "description": "The wizard's hero sentence. Both values are set apart typographically, so they are substituted as text rather than formatted numbers.",
@@ -274,6 +298,7 @@
   "@statsPacePerPage": {
     "placeholders": { "duration": { "type": "String" } }
   },
+  "statsPerPage": "للصفحة",
   "statsPagesPerDay": "صفحات باليوم",
   "statsToday": "النهارده",
   "statsCalendar": "أيامك اللي قريت فيها",
@@ -363,6 +388,15 @@
 
   "readerFinishSession": "أنهيت وردي",
   "readerKeepReading": "كمّل قراءة",
+  "readerOpenBook": "افتح الكتاب",
+  "readerTapToTurn": "المس الصفحة عشان تقلبها",
+  "readerPortionProgress": "{done} من {total}",
+  "@readerPortionProgress": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "readerCopyPage": "انسخ الصفحة دي",
   "readerPageCopied": "صفحة {page} اتنسخت",
   "@readerPageCopied": {
@@ -398,6 +432,18 @@
   },
   "durationHours": "{count, plural, one{ساعة} two{ساعتين} few{{count} ساعات} many{{count} ساعة} other{{count} ساعة}}",
   "@durationHours": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationSecondsTight": "{count}ث",
+  "@durationSecondsTight": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationMinutesTight": "{count}د",
+  "@durationMinutesTight": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationHoursTight": "{count}س",
+  "@durationHoursTight": {
     "placeholders": { "count": { "type": "int" } }
   },
   "durationHoursAndMinutes": "{hours} و{minutes}",
@@ -445,8 +491,21 @@
 
   "settingsAccount": "الحساب",
   "settingsPrivacyPolicy": "سياسة الخصوصية",
+  "settingsPrivacyPolicyHint": "ملفاتك عمرها ما بترفع.",
+  "settingsWarmth": "دفء الورق",
+  "settingsWarmthHint": "يدفّي الورق ويهدّي بياضه للقراءة الطويلة بالليل.",
+  "settingsWarmthCool": "بارد",
+  "settingsWarmthLight": "خفيف",
+  "settingsWarmthMedium": "متوسط",
+  "settingsWarmthWarm": "دافي",
+  "settingsWarmthWarmest": "دافي أوي",
+  "settingsFooterLine": "{version} · ملفاتك على الموبايل ده وبس",
+  "@settingsFooterLine": {
+    "placeholders": { "version": { "type": "String" } }
+  },
   "settingsBackup": "نسخة احتياطية",
   "settingsBackupHint": "احفظ كتبك وخططك وتاريخ قراءتك في ملف عندك. ملفات الـ PDF مش فيه — بتفضل على الموبايل ده.",
+  "settingsBackupSubtitle": "احفظ كتبك وخططك في ملف عندك.",
   "backupExport": "احفظ نسخة",
   "backupImport": "استرجع من نسخة",
   "backupExported": "{count, plural, =1{اتحفظت، وفيها عنصر واحد} two{اتحفظت، وفيها عنصرين} few{اتحفظت، وفيها {count} عناصر} other{اتحفظت، وفيها {count} عنصر}}",
@@ -500,6 +559,76 @@
   },
 
   "accountForgotPassword": "نسيت كلمة السر؟",
+
+  "manageTitle": "حسابك",
+  "manageName": "اسمك",
+  "manageNameHint": "الاسم اللي التطبيق بينادي بيه. سيبه فاضي وما ينادكش.",
+  "manageSaveName": "احفظ",
+  "manageNameSaved": "اتحفظ",
+  "manageSecurity": "تسجيل الدخول",
+  "manageChangePassword": "غيّر كلمة السر",
+  "manageSetPassword": "اعمل كلمة سر",
+  "manageSetPasswordHint": "طريق تاني للدخول، لليوم اللي حساب جوجل ما يكونش معاك فيه.",
+  "manageConnectGoogle": "اربط جوجل",
+  "manageDisconnectGoogle": "فك ربط جوجل",
+  "manageGoogleConnected": "جوجل مربوط بالحساب ده.",
+  "manageDevices": "أجهزتك",
+  "manageDevicesHint": "شوف إنت داخل منين، وطلّع أي جهاز بره.",
+  "manageErrorOffline": "ما قدرناش نوصل للسيرفر. اطمن على النت وجرّب تاني.",
+  "manageErrorTooMany": "محاولات كتير. استنى دقيقة وجرّب تاني.",
+  "manageErrorNotConfirmed": "كلمة السر دي مش صح.",
+  "manageErrorGoogle": "الدخول بجوجل ما نفعش. جرّب تاني.",
+  "manageErrorEmailNotVerified": "أكّد إيميلك الأول.",
+  "manageErrorGoogleEmailMismatch": "حساب جوجل ده بإيميل تاني. اختار الحساب اللي بنفس إيميل حسابك هنا.",
+  "manageErrorGoogleAlreadyInUse": "حساب جوجل ده مربوط بحساب تاني هنا.",
+  "manageErrorWouldLockOut": "اعمل كلمة سر الأول — من غيرها مش هيبقى قدامك طريق ترجع بيه.",
+  "manageUnlinkTitle": "فك ربط جوجل",
+  "manageUnlinkBody": "هتدخل بالإيميل وكلمة السر من دلوقتي. اكتب كلمة السر للتأكيد.",
+  "manageUnlinkConfirm": "فك الربط",
+  "commonCancel": "إلغاء",
+
+  "verifyEmailPrompt": "أكّد إيميلك",
+  "verifyEmailPromptBody": "بيه بنعرف إن الإيميل بتاعك فعلًا — وبيه تقدر تربط جوجل بالحساب ده.",
+  "verifyEmailAction": "أكّد دلوقتي",
+  "verifyEmailTitle": "تأكيد الإيميل",
+  "verifyEmailIntro": "بعتنا كود من ٦ أرقام على {email}. صالح لمدة ربع ساعة.",
+  "@verifyEmailIntro": {
+    "placeholders": { "email": { "type": "String" } }
+  },
+  "verifyEmailCode": "الكود (٦ أرقام)",
+  "verifyEmailSubmit": "أكّد إيميلي",
+  "verifyEmailResend": "ابعت كود تاني",
+  "verifyEmailResent": "كود جديد في طريقه ليك. القديم بطل يشتغل.",
+  "verifyEmailDone": "إيميلك اتأكّد",
+  "verifyEmailDoneBody": "تقدر تربط جوجل بالحساب ده دلوقتي، وتغيير كلمة السر هيوصلك.",
+  "verifyEmailErrorCode": "الكود ده مش صالح. اطلب واحد جديد وجرّب تاني.",
+
+  "changePasswordTitle": "غيّر كلمة السر",
+  "setPasswordTitle": "اعمل كلمة سر",
+  "changePasswordIntro": "كل الأجهزة التانية هتتقفل. الجهاز ده هيفضل داخل.",
+  "setPasswordIntro": "هتقدر تدخل بالإيميل وكلمة السر زي ما بتدخل بجوجل. كل الأجهزة التانية هتتقفل.",
+  "changePasswordCurrent": "كلمة السر الحالية",
+  "changePasswordNew": "كلمة السر الجديدة",
+  "changePasswordSubmit": "احفظ كلمة السر الجديدة",
+  "setPasswordSubmit": "اعمل كلمة السر",
+  "changePasswordGoogleHint": "جوجل هيطلب منك تأكيد إنك إنت قبل ما كلمة السر تتحفظ.",
+  "changePasswordDone": "كلمة السر اتحفظت",
+  "changePasswordDoneBody": "كل الأجهزة التانية اتقفلت. الجهاز ده لسه داخل.",
+  "changePasswordErrorUnchanged": "دي كلمة السر اللي معاك أصلًا.",
+
+  "sessionsTitle": "أجهزتك",
+  "sessionsIntro": "كل جهاز داخل على حسابك. طلّع أي واحد بره وهيضطر يسجّل دخول تاني.",
+  "sessionsCurrent": "الجهاز ده",
+  "sessionsSignedInOn": "دخل يوم {date}",
+  "@sessionsSignedInOn": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "sessionsSignOutOne": "طلّعه بره",
+  "sessionsSignOutOthers": "اقفل كل الأجهزة التانية",
+  "sessionsOnlyThisOne": "الجهاز ده هو الوحيد الداخل.",
+  "sessionsFailed": "ما قدرناش نجيب أجهزتك. اطمن على النت وجرّب تاني.",
+  "sessionsRetry": "جرّب تاني",
+
   "resetTitle": "غيّر كلمة السر",
   "resetIntro": "قول لنا الإيميل بتاع حسابك وهنبعتلك كود من ٦ أرقام.",
   "resetSendCode": "ابعتلي الكود",

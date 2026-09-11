@@ -21,32 +21,40 @@ import 'app_typography.dart';
 /// as primary on its own screen; what must not happen is a screen showing two
 /// competing primaries.
 abstract final class AppTheme {
-  /// Both brightness and locale change the theme, and the locale is only known
-  /// below `MaterialApp`, so themes are built on demand and cached. There are
-  /// at most four.
+  /// Brightness, locale and paper warmth all change the theme, and the locale
+  /// is only known below `MaterialApp`, so themes are built on demand and
+  /// cached. Warmth moves in [PaperWarmth.step]s, which bounds this at
+  /// 2 × 2 × 21.
   static final _cache = <String, ThemeData>{};
 
   static ThemeData of({
     required Brightness brightness,
     required Locale locale,
+    int warmth = PaperWarmth.neutral,
   }) {
-    final key = '${brightness.name}.${locale.languageCode}';
-    return _cache[key] ??= _build(brightness, locale);
+    final warmthKey = PaperWarmth.clamped(warmth);
+    final key = '${brightness.name}.${locale.languageCode}.$warmthKey';
+    return _cache[key] ??= _build(brightness, locale, warmthKey);
   }
 
   /// The theme `MaterialApp` starts with, before [of] refines it for the
-  /// resolved locale. Arabic is the default because it is the app's first
-  /// language, not a translation of the English one.
+  /// resolved locale and the reader's warmth. Arabic is the default because it
+  /// is the app's first language, not a translation of the English one.
   static ThemeData light() =>
       of(brightness: Brightness.light, locale: const Locale('ar'));
 
   static ThemeData dark() =>
       of(brightness: Brightness.dark, locale: const Locale('ar'));
 
-  static ThemeData _build(Brightness brightness, Locale locale) {
+  static ThemeData _build(Brightness brightness, Locale locale, int warmth) {
     final isLight = brightness == Brightness.light;
-    final colors = isLight ? lightColorScheme : darkColorScheme;
-    final extras = isLight ? AppColors.light : AppColors.dark;
+    final colors = PaperWarmth.temperScheme(
+      isLight ? lightColorScheme : darkColorScheme,
+      warmth,
+    );
+    final extras = (isLight ? AppColors.light : AppColors.dark).tempered(
+      warmth,
+    );
     final text = AppTypography.forLocale(locale);
 
     const shape = RoundedRectangleBorder(
@@ -281,6 +289,22 @@ abstract final class AppTheme {
         linearTrackColor: extras.hairline,
         circularTrackColor: Colors.transparent,
         linearMinHeight: 1,
+      ),
+      // The warmth slider, and the plan screen's portion slider. The one place
+      // gold is allowed to run as a filled track rather than a stroke: it is
+      // showing an amount, and a hairline cannot be dragged.
+      sliderTheme: SliderThemeData(
+        activeTrackColor: extras.accentStroke,
+        inactiveTrackColor: colors.surfaceContainerHighest,
+        thumbColor: extras.accentStroke,
+        overlayColor: extras.accentStroke.withValues(alpha: 0.12),
+        trackHeight: 6,
+        trackShape: const RoundedRectSliderTrackShape(),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+        // The value is spelled out in words beside the track, so the pop-up
+        // bubble would be the same fact twice, in digits the label avoids.
+        showValueIndicator: ShowValueIndicator.never,
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(

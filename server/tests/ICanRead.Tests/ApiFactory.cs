@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using ICanRead.Application.Email;
 using ICanRead.Infrastructure.Auth;
@@ -100,6 +102,43 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 public class ApiCollection : ICollectionFixture<ApiFactory>
 {
     public const string Name = "api";
+}
+
+/// <summary>
+/// Calling an endpoint as a signed-in reader.
+/// </summary>
+/// <remarks>
+/// <c>HttpClient.DefaultRequestHeaders</c> is not an option: the factory hands
+/// every test class a client over one shared server, and several tests act as
+/// two readers at once. The token belongs to the request, not to the client.
+/// </remarks>
+public static class AuthenticatedRequests
+{
+    public static async Task<HttpResponseMessage> SendAsAsync(
+        this HttpClient client,
+        HttpMethod method,
+        string path,
+        string accessToken,
+        object? body = null)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request);
+    }
+
+    public static Task<HttpResponseMessage> PostAsAsync(
+        this HttpClient client, string path, string accessToken, object? body = null) =>
+        client.SendAsAsync(HttpMethod.Post, path, accessToken, body);
+
+    public static Task<HttpResponseMessage> GetAsAsync(
+        this HttpClient client, string path, string accessToken) =>
+        client.SendAsAsync(HttpMethod.Get, path, accessToken);
 }
 
 /// <summary>

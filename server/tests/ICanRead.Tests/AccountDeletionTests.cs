@@ -184,7 +184,7 @@ public class AccountDeletionTests(ApiFactory factory)
         var subject = Guid.NewGuid().ToString();
         var token = StubGoogleTokenVerifier.TokenFor(subject, NewEmail());
         var googleAuth = (await (await _client.PostAsJsonAsync("/api/auth/google",
-                new GoogleSignInRequest(token)))
+                new GoogleTokenRequest(token)))
             .Content.ReadFromJsonAsync<AuthResponse>())!;
 
         // It has no password, so a password cannot be what confirms it.

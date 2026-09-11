@@ -4,10 +4,18 @@ import '../theme/app_tokens.dart';
 
 /// The language / theme / plan-mode switch.
 ///
-/// Material's [SegmentedButton] fills the selected segment and adds a
-/// checkmark. Here the selection is a 1px inset accent ring and a colour
-/// change — no fill, no icon — so this is a Row of [InkWell]s rather than a
-/// restyled `SegmentedButton`.
+/// Redesign v2 reversed how selection is drawn here. It used to be a 1px inset
+/// accent ring; it is now the **ink slab** — the selected segment fills with
+/// walnut and sets its label in cream, the same treatment as the primary
+/// button. That is deliberate: on Settings and on Plan this control *is* the
+/// decision the screen is about, and a ring was too quiet to carry it.
+///
+/// The slab runs to the outer edge and takes the container's corner radius on
+/// whichever end it sits, so the control reads as one printed strip with a
+/// block inked onto it rather than as a button inside a box.
+///
+/// Material's [SegmentedButton] fills the selected segment too, but adds a
+/// checkmark and its own shape rules, so this stays a Row of [InkWell]s.
 class AppSegmentedControl<T> extends StatelessWidget {
   const AppSegmentedControl({
     required this.segments,
@@ -24,26 +32,37 @@ class AppSegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.appColors;
+    final selectedIndex = segments.indexWhere((s) => s.value == value);
 
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.hairline),
         borderRadius: BorderRadius.circular(AppSpacing.radius),
       ),
-      child: Row(
-        children: [
-          for (final (index, segment) in segments.indexed)
-            Expanded(
-              child: _Segment(
-                segment: segment,
-                selected: segment.value == value,
-                // Only the interior gets a divider; the outer box already has
-                // one on each end.
-                showLeadingDivider: index > 0,
-                onTap: () => onChanged(segment.value),
+      // Clips the slab's square inner corners against the container's rounded
+      // outer ones; without it the fill overruns the border on the end
+      // segments.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.radius),
+        child: Row(
+          children: [
+            for (final (index, segment) in segments.indexed)
+              Expanded(
+                child: _Segment(
+                  segment: segment,
+                  selected: index == selectedIndex,
+                  // A hairline separates two *unselected* neighbours only. The
+                  // slab's own edge already divides it from what it sits next
+                  // to, and a rule against the fill reads as a seam.
+                  showLeadingDivider:
+                      index > 0 &&
+                      index != selectedIndex &&
+                      index - 1 != selectedIndex,
+                  onTap: () => onChanged(segment.value),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -81,11 +100,11 @@ class _Segment<T> extends StatelessWidget {
 
     final base = segment.textStyle ?? theme.textTheme.labelMedium;
     final style = base?.copyWith(
-      fontSize: 13,
+      fontSize: 13.5,
       color: selected
-          ? theme.colorScheme.primary
+          ? theme.colorScheme.onInverseSurface
           : theme.colorScheme.onSurfaceVariant,
-      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
     );
 
     return Semantics(
@@ -96,49 +115,25 @@ class _Segment<T> extends StatelessWidget {
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border(
-              // Drawn as an inset ring rather than an outline so it lands
-              // inside the container's own border instead of doubling it.
-              top: _ring(selected, colors),
-              bottom: _ring(selected, colors),
-              left: _ring(selected, colors),
-              right: _ring(selected, colors),
-            ),
+            color: selected ? theme.colorScheme.inverseSurface : null,
+            border: showLeadingDivider
+                ? BorderDirectional(start: BorderSide(color: colors.hairline))
+                : null,
           ),
-          child: Stack(
-            children: [
-              if (showLeadingDivider && !selected)
-                PositionedDirectional(
-                  start: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: SizedBox(
-                    width: 1,
-                    child: ColoredBox(color: colors.hairline),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Center(
-                  child: Text(
-                    segment.label,
-                    style: style,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Center(
+              child: Text(
+                segment.label,
+                style: style,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-
-  /// Always 1px wide, transparent when unselected. [BorderSide.none] is
-  /// zero-width, which would inset the label by a pixel on selection and make
-  /// the row twitch as the choice moves.
-  static BorderSide _ring(bool selected, AppColors colors) =>
-      BorderSide(color: selected ? colors.accentStroke : Colors.transparent);
 }

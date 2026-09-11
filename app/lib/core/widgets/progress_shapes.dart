@@ -14,6 +14,12 @@
 /// * [TodayBar]    — *today*. One segment per session, so the split is visible.
 /// * [BookRule]    — *the whole book*. A thicker ink rule, paired with a
 ///   percentage in Cormorant figures.
+/// * [BookComb]    — *the whole book*, at page resolution. Redesign v2's book
+///   detail and plan screens. Book scope's second shape, for the two screens
+///   where the book itself is the subject and a 2px rule is too thin to carry
+///   it. Both of its constructors are book-scope statements — the rule is that
+///   one shape must not mean two *scopes*, so a shape may say two things about
+///   the same scope, and this one must never be pointed at a session or a day.
 ///
 /// Keeping them as named widgets is what stops the scopes being conflated
 /// later. Do not add a `style` parameter that lets one become another.
@@ -41,6 +47,11 @@ class SessionRule extends StatelessWidget {
           FractionallySizedBox(
             alignment: AlignmentDirectional.centerStart,
             widthFactor: fraction.clamp(0.0, 1.0),
+            // Without this the box is handed a *loose* height, and a
+            // `ColoredBox` with no child takes `constraints.smallest` — so the
+            // fill lays out one pixel wide and zero high, and the rule silently
+            // never draws its progress at all.
+            heightFactor: 1,
             child: ColoredBox(color: colors.accentStroke),
           ),
         ],
@@ -153,6 +164,10 @@ class TodayBar extends StatelessWidget {
     return SizedBox(
       height: height,
       child: Row(
+        // Stretch, not the default centre: a centred child is given a loose
+        // height, and a `ColoredBox` with no child collapses to zero under one
+        // — which draws nothing while still being in the tree.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final (index, segment) in segments.indexed) ...[
             if (index > 0) const SizedBox(width: 3),
@@ -169,6 +184,147 @@ class TodayBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Book scope at page resolution: the whole book drawn as a run of upright
+/// strokes, one band of "pages" read left to right in the reading direction.
+///
+/// Two readings, both about the book:
+///
+/// * [BookComb.progress] inks the pages behind the reader, leaves the ones
+///   ahead faint, and stands a brass rule at the place they stopped.
+/// * [BookComb.span] brasses the stretch a plan covers and leaves the rest of
+///   the book faint, so "from page 12 to 632" is a picture before it is a
+///   sentence.
+///
+/// The strokes are drawn at a fixed pitch rather than one-per-page: a 900-page
+/// book at one stroke each is a solid block, and the point of the shape is that
+/// it reads as *pages* rather than as a bar.
+class BookComb extends StatelessWidget {
+  /// How far through the book the reader is, 0–1.
+  const BookComb.progress({
+    required double fraction,
+    this.height = 64,
+    super.key,
+  }) : _fraction = fraction < 0 ? 0.0 : (fraction > 1 ? 1.0 : fraction),
+       _from = null,
+       _to = null;
+
+  /// The stretch [from]–[to] of a book that is [of] pages long, 1-based and
+  /// inclusive, as a plan covers it.
+  const BookComb.span({
+    required int from,
+    required int to,
+    required int of,
+    this.height = 40,
+    super.key,
+  }) : _fraction = null,
+       _from = of < 1 ? 0.0 : (from - 1) / of,
+       _to = of < 1 ? 1.0 : to / of;
+
+  final double height;
+
+  final double? _fraction;
+  final double? _from;
+  final double? _to;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      height: height,
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _BookCombPainter(
+          fraction: _fraction,
+          from: _from?.clamp(0.0, 1.0),
+          to: _to?.clamp(0.0, 1.0),
+          read: theme.colorScheme.onSurface,
+          unread: theme.colorScheme.surfaceContainerHighest,
+          mark: theme.appColors.accentStroke,
+          rightToLeft: Directionality.of(context) == TextDirection.rtl,
+        ),
+      ),
+    );
+  }
+}
+
+class _BookCombPainter extends CustomPainter {
+  const _BookCombPainter({
+    required this.fraction,
+    required this.from,
+    required this.to,
+    required this.read,
+    required this.unread,
+    required this.mark,
+    required this.rightToLeft,
+  });
+
+  /// Set for [BookComb.progress]; null for a span.
+  final double? fraction;
+
+  /// Set for [BookComb.span]; null for progress.
+  final double? from;
+  final double? to;
+
+  final Color read;
+  final Color unread;
+  final Color mark;
+
+  /// The book starts at the trailing edge in Arabic, so the whole comb is
+  /// mirrored rather than merely right-aligned — page 1 has to sit where the
+  /// reader's eye starts.
+  final bool rightToLeft;
+
+  static const _pitch = 4.0;
+  static const _stroke = 2.0;
+
+  /// The place-marker, in strokes. Wider than a page stroke because it is a
+  /// different kind of statement: not a page, a position.
+  static const _markerStrokes = 2;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final count = (size.width / _pitch).floor();
+    if (count < 1) return;
+
+    final marker = fraction == null
+        ? -1
+        : (fraction! * count).floor().clamp(0, count - 1);
+    final firstInSpan = from == null ? -1 : (from! * count).floor();
+    final lastInSpan = to == null ? -1 : (to! * count).ceil() - 1;
+
+    final paint = Paint();
+    for (var i = 0; i < count; i++) {
+      paint.color = fraction != null
+          ? switch (i) {
+              _ when i < marker => read,
+              _ when i < marker + _markerStrokes => mark,
+              _ => unread,
+            }
+          : (i >= firstInSpan && i <= lastInSpan ? mark : unread);
+
+      // Mirroring the index rather than the canvas keeps the strokes on whole
+      // pixels in both directions; a canvas flip lands them on halves and the
+      // comb comes out furry.
+      final slot = rightToLeft ? count - 1 - i : i;
+      canvas.drawRect(
+        Rect.fromLTWH(slot * _pitch, 0, _stroke, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BookCombPainter old) =>
+      old.fraction != fraction ||
+      old.from != from ||
+      old.to != to ||
+      old.read != read ||
+      old.unread != unread ||
+      old.mark != mark ||
+      old.rightToLeft != rightToLeft;
 }
 
 /// Book scope: a 2px ink rule. The accompanying percentage is set by the
@@ -190,6 +346,9 @@ class BookRule extends StatelessWidget {
           FractionallySizedBox(
             alignment: AlignmentDirectional.centerStart,
             widthFactor: fraction.clamp(0.0, 1.0),
+            // See [SessionRule]: a loose height collapses a childless
+            // `ColoredBox` to nothing.
+            heightFactor: 1,
             child: ColoredBox(color: theme.colorScheme.onSurface),
           ),
         ],

@@ -18,6 +18,16 @@ metadata, plans and progress.
 | Password reset: `POST /api/auth/forgot-password` · `POST /api/auth/reset-password`, code emailed over SMTP | done |
 | Rate limiting on `/api/auth/*` | done |
 | Account deletion: `POST /api/me/delete` | done |
+| Email confirmation: `POST /api/me/email/send-code` · `POST /api/me/email/verify` | done |
+| Sign-in lockout per account, after ten consecutive wrong passwords | done |
+| Password change / first password: `POST /api/me/password` | done |
+| Google link / unlink: `POST /api/me/google/link` · `.../unlink` | done |
+| Sessions: `GET /api/me/sessions` · `DELETE /api/me/sessions/{id}` · `POST /api/me/sessions/revoke-others` | done |
+| Profile: `PATCH /api/me` | done |
+
+Deliberately not here: changing the address on an account (it needs its own
+re-confirmation flow and interacts with the Google link), roles, and an audit
+log.
 
 ## How sync works
 
@@ -95,6 +105,14 @@ step. `GET /health` answers `{"status":"ok"}` once it is up.
 
 ### Google sign-in
 
+Accounts are found by Google's `sub` claim, never by email: the subject is
+stable for the life of the account, while an email can be changed and on
+Workspace domains reassigned to somebody else. When the subject is new but the
+address already has a password account here, the two are joined up **only if
+that account has confirmed the address** — see below for why that condition is
+the whole point. An account that arrives through Google starts out confirmed,
+because Google has already checked the address it is vouching for.
+
 `Google:ClientId` in `appsettings.json` is the **Web** OAuth client ID, and it
 is committed on purpose: the same string ships inside the APK, and it names the
 Google Cloud project rather than authorising anything. There is no client
@@ -168,6 +186,91 @@ instead, so a fresh clone can walk the whole flow without a mail account.
 Outside Development, startup fails without it: a server that cannot send mail
 cannot reset a password, and a reader who cannot reset a password has lost their
 library.
+
+### Confirming an email address
+
+Registration does **not** wait for it. The reader is signed in immediately and a
+six-digit code goes out alongside — holding a library hostage until somebody
+goes and finds an email is how a reader gives up on a reading app. They spend
+the code later at `POST /api/me/email/verify`, signed in, so no address travels
+with it.
+
+What an unconfirmed address costs is one thing: **Google cannot be attached to
+that account.** That is the whole reason the flow exists. Without it, somebody
+could register with an address they do not own, wait for its real owner to
+arrive through Google, and — if the two were joined up — end up holding a
+password to that reader's account. A confirmed address closes exactly that hole,
+because the squatter could never have confirmed it.
+
+Codes for the two purposes live in one table, `account_codes`, told apart by a
+`Purpose` column. **The purpose is part of what makes a code valid**, not a
+label on it: without that check, the code emailed to prove an address could be
+typed into the reset form, which would turn "can receive mail here" into "can
+take this account over" for anybody holding one.
+
+### Sign-in lockout
+
+Ten consecutive wrong passwords and the account starts making sign-ins wait —
+one minute, doubling with each further failure, capped at fifteen. A success
+resets the count, and so does a password reset, because the wrong passwords that
+caused the lockout were by definition not the reader's.
+
+This is not the same defence as the rate limiter. The limiter counts requests
+per address, which stops one machine guessing quickly; this stops many machines
+guessing at one account slowly, which the limiter cannot see at all.
+
+**A locked account answers `429`, not `401`.** That does tell a caller the
+address has an account — but only after ten wrong guesses, and it is the same
+status the rate limiter returns, so the two are not distinguishable from
+outside. The reason to say it plainly is the reader: told "wrong password" while
+holding the right one, they go and change a password that was never the problem.
+An address with no account is never reported as locked; there is no row to count
+against, so there is nothing to say.
+
+### Changing a password, and linking Google
+
+`POST /api/me/password` sets a password — the first one for an account that only
+signs in with Google, or a replacement. Which proof it asks for is decided from
+the stored account, never from what the caller sent: the current password if
+there is one, a fresh Google ID token if Google is the only way in. That is the
+same `AccountConfirmation` the delete endpoint uses, and for the same reason an
+access token alone is not enough.
+
+**It answers with a whole new token pair**, not a `204`. The change revokes
+every refresh token on the account including the caller's own — a password is
+changed either because the reader wants a better one or because they think
+somebody else has the old one, and in the second case leaving that somebody's
+session alive would make the change cosmetic. The replacement pair is what keeps
+the phone in the reader's hand signed in while every other device is not.
+
+Linking Google needs the account's address confirmed **and** the Google
+account's address to be the same one. Unlinking is refused while Google is the
+only way in: an account with neither a password nor a link cannot be signed into
+by anybody, ever — not even by password reset, since there would be no session
+to set one from.
+
+Four of these refusals are `409`s, so each carries a machine-readable `code` in
+the problem document (`emailNotVerified`, `googleEmailMismatch`,
+`googleAlreadyInUse`, `wouldLockOut`). The title is English and is for whoever
+reads a log; the code is what the app switches on to say the right thing in the
+reader's own language.
+
+### Sessions
+
+`GET /api/me/sessions` lists the account's live refresh tokens as devices — when
+each signed in, the address and user agent it was opened from, and which one is
+the caller. "Which one is the caller" comes from a `sid` claim on the access
+token naming the refresh row it was issued beside. No token or hash of one is
+ever returned; the id only names a session, and every endpoint that acts on one
+checks it belongs to the account in the token first. A session id that is not
+yours is a `404`, the same as one that does not exist.
+
+The address and user agent are recorded when the session is **opened** and carry
+across rotations unchanged. A session that moves from a café to a train is still
+the same session; stamping it with wherever it last refreshed would make the
+list about the network rather than the device. Both values are shown to the
+reader and neither is ever acted on — the user agent is a header the caller
+chooses and can say anything.
 
 ### Deleting an account
 
@@ -286,8 +389,13 @@ a trustworthy client-IP header is ever confirmed for this host, the fix is the
   10 source generator. There is one consumer of this API and it lives in this
   repo. Re-add when a patched 2.x ships.
 - **Refresh tokens are opaque random bytes, stored hashed**, and rotate on every
-  use. Presenting a spent token revokes every live token for that account, on
-  the assumption that a replayed token means a captured one.
+  use. Presenting a token that was *rotated* revokes every live token for that
+  account, on the assumption that a replayed token means a captured one.
+  Presenting one that was revoked **on purpose** — by signing out, by a password
+  change, or by signing that device out from another — does not: it is a `401`
+  and nothing else. `ReplacedByTokenId` is what tells the two apart. Without
+  that distinction, "sign out my old phone" would quietly sign out every phone
+  the moment the old one was next picked up and refreshed innocently.
 - **`reading_log` deletes are `Restrict`, not `Cascade`.** The log is
   append-only and is the record of what the reader actually did; losing it must
   never be a side effect of tidying up a book.

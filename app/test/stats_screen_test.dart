@@ -148,7 +148,7 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('time read and the pace it implies sit under the figures', (
+  testWidgets('time read glosses the streak, and the pace is its own cell', (
     tester,
   ) async {
     await addBook(id: 'b1', title: 'The Muqaddimah');
@@ -156,10 +156,13 @@ void main() {
     await read('b1', 29, 20, from: 1, took: const Duration(minutes: 40));
     await pumpStats(tester);
 
-    expect(
-      find.text('40 minutes with a book · about 2 minutes a page'),
-      findsOneWidget,
-    );
+    // Time is something the reader spent rather than something they counted,
+    // so it sits under the streak rather than standing as a figure.
+    expect(find.text('40 minutes with a book'), findsOneWidget);
+    // The pace is a measurement, so it joins the other two in the ruled row —
+    // at glyph width, with the unit named by the label under it.
+    expect(find.text('2m'), findsOneWidget);
+    expect(find.text('a page'), findsOneWidget);
 
     await closeApp(tester);
   });

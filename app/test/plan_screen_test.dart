@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:i_can_read/core/db/app_database.dart';
 import 'package:i_can_read/core/theme/app_theme.dart';
 import 'package:i_can_read/features/plan/presentation/plan_screen.dart';
+import 'package:i_can_read/features/today/application/today_providers.dart';
 import 'package:i_can_read/l10n/app_localizations.dart';
 
 final _jan1 = DateTime(2026, 1, 1);
@@ -40,7 +41,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          // Pins "today", so the dates the preview names are the same ones
+          // this test can spell out.
+          todayProvider.overrideWithValue(_jan1),
+        ],
         child: MaterialApp(
           locale: locale ?? const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -89,17 +95,45 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('a preset moves the deadline and the daily portion with it', (
+  /// Nudges the one slider by [times], a step at a time.
+  ///
+  /// Redesign v2 replaced the presets and the two mode-specific fields with a
+  /// single slider whose meaning follows the chosen mode. The keys either side
+  /// of it are the same control at single-step resolution, and they are what a
+  /// test can drive exactly.
+  Future<void> step(WidgetTester tester, String label, {int times = 1}) async {
+    for (var i = 0; i < times; i++) {
+      await tester.tap(find.bySemanticsLabel(label));
+      await tester.pumpAndSettle();
+    }
+  }
+
+  /// Brings the committing button into the tree before tapping it.
+  ///
+  /// The screen is one lazy list and the button is last; on a test-sized
+  /// viewport it is not merely off-screen but never built.
+  Future<void> tapAtFoot(WidgetTester tester, String label) async {
+    await tester.scrollUntilVisible(find.text(label), 160);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the slider moves the finish date, and the portion follows', (
     tester,
   ) async {
     await pumpPlan(tester);
 
-    await tester.tap(find.text('60 days'));
-    await tester.pumpAndSettle();
+    // 240 pages over 30 days from 1 January.
+    expect(find.text('8'), findsOneWidget);
+    expect(find.text('30 January'), findsOneWidget);
 
-    // 240 over 60 days.
-    expect(find.text('4'), findsOneWidget);
-    expect(find.textContaining('60 days ·'), findsOneWidget);
+    // Ten days longer: forty days, and 240 over 40 is 6 a day. The reader
+    // moved one control and both of the other numbers redrew.
+    await step(tester, 'One day longer', times: 10);
+
+    expect(find.text('9 February'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -112,21 +146,23 @@ void main() {
     await tester.tap(find.text('Pages per day'));
     await tester.pumpAndSettle();
 
-    // The stepper opens on the 8 the deadline implied, rather than resetting.
-    expect(find.text('8'), findsNWidgets(2)); // the preview and the stepper
+    // The slider takes over the 8 the deadline implied, rather than resetting.
+    // Once, now: the sentence is the only place the number is stated.
+    expect(find.text('8'), findsOneWidget);
 
     await closeApp(tester);
   });
 
-  testWidgets('the stepper moves the projected finish date', (tester) async {
+  testWidgets('the slider moves the projected finish date', (tester) async {
     await pumpPlan(tester);
     await tester.tap(find.text('Pages per day'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.bySemanticsLabel('One page a day more'));
-    await tester.pumpAndSettle();
+    await step(tester, 'One page a day more');
 
-    expect(find.text('9'), findsNWidgets(2));
+    // Nine a day finishes 240 pages in 27 days rather than 30.
+    expect(find.text('9'), findsOneWidget);
+    expect(find.text('27 January'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -143,7 +179,11 @@ void main() {
     await tester.tap(find.bySemanticsLabel('One page more'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('239 pages from page 2'), findsOneWidget);
+    // The stretch says it twice over: the two ends the plan runs between, and
+    // what that adds up to.
+    expect(find.text('From page 2 to 240'), findsOneWidget);
+    // Sits on one line with the day count, so this matches within it.
+    expect(find.textContaining('239 pages total'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -152,8 +192,7 @@ void main() {
     await pumpPlan(tester);
     expect(await savedPlan(), isNull);
 
-    await tester.tap(find.text('Continue to sessions'));
-    await tester.pumpAndSettle();
+    await tapAtFoot(tester, 'Continue to sessions');
 
     final plan = await savedPlan();
     expect(plan, isNotNull);
@@ -168,8 +207,7 @@ void main() {
     tester,
   ) async {
     await pumpPlan(tester);
-    await tester.tap(find.text('Continue to sessions'));
-    await tester.pumpAndSettle();
+    await tapAtFoot(tester, 'Continue to sessions');
     // Leave the screen for real, so the form is rebuilt from the stored plan
     // rather than from whatever the first pass left in its state.
     await closeApp(tester);
@@ -179,10 +217,8 @@ void main() {
 
     await tester.tap(find.text('Pages per day'));
     await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('One page a day more'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await step(tester, 'One page a day more');
+    await tapAtFoot(tester, 'Save');
 
     expect(await db.select(db.readingPlans).get(), hasLength(1));
     expect((await savedPlan())!.pagesPerDay, 9);
@@ -193,10 +229,12 @@ void main() {
   testWidgets('Arabic renders the same plan right-to-left', (tester) async {
     await pumpPlan(tester, locale: const Locale('ar'));
 
-    expect(find.text('كمّل للجلسات'), findsOneWidget);
     expect(find.textContaining('هتقرأ'), findsOneWidget);
     // Figures stay western even under Arabic.
     expect(find.text('8'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('كمّل للجلسات'), 160);
+    expect(find.text('كمّل للجلسات'), findsOneWidget);
 
     await closeApp(tester);
   });

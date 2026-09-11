@@ -133,10 +133,15 @@ class _ICanReadAppState extends ConsumerState<ICanReadApp> {
       // needs taller line heights than Lora is set at. `locale` above may be
       // null (follow the system), and the resolved locale only exists below
       // `MaterialApp`, so the final theme is swapped in here.
+      //
+      // Paper warmth rides along for the same reason — it applies to light and
+      // dark alike, so it belongs on the theme that is already being rebuilt
+      // per brightness rather than on two separate ones above.
       builder: (context, child) => Theme(
         data: AppTheme.of(
           brightness: Theme.of(context).brightness,
           locale: Localizations.localeOf(context),
+          warmth: settings.paperWarmth,
         ),
         child: child!,
       ),

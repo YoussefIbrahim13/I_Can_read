@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/problem_note.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/account_rules.dart';
@@ -138,7 +139,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                     ],
                     if (state is PasswordResetFailed) ...[
                       const SizedBox(height: AppSpacing.x3),
-                      _Problem(_message(l10n, state.error)),
+                      ProblemNote(_message(l10n, state.error)),
                     ],
                     if (onCodeStep) ...[
                       const SizedBox(height: AppSpacing.x4),
@@ -217,40 +218,5 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
       PasswordResetError.tooManyRequests => l10n.resetErrorTooMany,
       PasswordResetError.offline => l10n.accountErrorOffline,
     };
-  }
-}
-
-/// What went wrong, on a rule rather than in a toast — the same treatment the
-/// account screen gives it, for the same reason: the fields it is about are
-/// still on screen.
-class _Problem extends StatelessWidget {
-  const _Problem(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        AppSpacing.x3,
-        AppSpacing.x2,
-        AppSpacing.x3,
-        AppSpacing.x2,
-      ),
-      decoration: BoxDecoration(
-        border: BorderDirectional(
-          start: BorderSide(color: theme.colorScheme.error, width: 2),
-        ),
-      ),
-      child: Text(
-        message,
-        style: theme.textTheme.bodySmall?.copyWith(
-          height: 1.6,
-          color: theme.colorScheme.error,
-        ),
-      ),
-    );
   }
 }

@@ -23,6 +23,42 @@ final bookFilePathProvider = FutureProvider.autoDispose.family<String?, String>(
   },
 );
 
+/// The page this device last had the book open on, or null if it never has.
+///
+/// Read once when the reader opens: it decides where a book with no plan — or
+/// one opened outside its plan — lands. A future rather than a stream, because
+/// the screen that reads it is also the screen that writes it, and a live query
+/// would re-seed the viewer from underneath the reader as they turn pages.
+final lastPageOpenProvider = FutureProvider.autoDispose.family<int?, String>((
+  ref,
+  bookId,
+) {
+  return ref.watch(appDatabaseProvider).lastPageOpen(bookId);
+});
+
+/// Remembers where the book is open, without claiming anything was read.
+///
+/// Separate from [ProgressWriter] on purpose: that one advances a plan and is
+/// only ever called because the reader said they had finished. This one is a
+/// finger in the page, and runs on every turn.
+class ReaderBookmark {
+  const ReaderBookmark(this._db);
+
+  final AppDatabase _db;
+
+  Future<void> remember({required String bookId, required int page}) {
+    return _db.rememberLastPage(
+      bookId: bookId,
+      page: page,
+      now: DateTime.now(),
+    );
+  }
+}
+
+final readerBookmarkProvider = Provider<ReaderBookmark>((ref) {
+  return ReaderBookmark(ref.watch(appDatabaseProvider));
+});
+
 /// Writes what was read back to the plan.
 class ProgressWriter {
   const ProgressWriter(this._db);

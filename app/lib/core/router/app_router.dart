@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/change_password_screen.dart';
 import '../../features/account/presentation/delete_account_screen.dart';
+import '../../features/account/presentation/devices_screen.dart';
 import '../../features/account/presentation/password_reset_screen.dart';
+import '../../features/account/presentation/verify_email_screen.dart';
 import '../../features/add_book/presentation/add_book_screen.dart';
+import '../../features/backup/presentation/backup_screen.dart';
 import '../../features/book_detail/presentation/book_detail_screen.dart';
 import '../../features/book_detail/presentation/reading_record_screen.dart';
 import '../../features/library/presentation/library_screen.dart';
@@ -52,11 +56,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/account/delete',
         builder: (context, state) => const DeleteAccountScreen(),
       ),
+      // Outside the shell like the account screens: one task, one way out.
+      // Restoring writes over the whole library, so the tab bar has no
+      // business sitting under it offering somewhere else to be.
+      GoRoute(
+        path: '/settings/backup',
+        builder: (context, state) => const BackupScreen(),
+      ),
       GoRoute(
         path: '/account/reset',
         builder: (context, state) => PasswordResetScreen(
           initialEmail: state.uri.queryParameters['email'],
         ),
+      ),
+      // The three account-management screens, outside the shell like every
+      // other account screen: each is one deliberate task with one way out, and
+      // a tab bar underneath would only offer a way to leave it half-done.
+      GoRoute(
+        path: '/account/password',
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/account/verify-email',
+        builder: (context, state) => const VerifyEmailScreen(),
+      ),
+      GoRoute(
+        path: '/account/sessions',
+        builder: (context, state) => const DevicesScreen(),
       ),
       // Outside the shell: adding a book is a focused task, so the tab bar
       // would only offer a way to abandon it half-done.
@@ -174,25 +200,13 @@ class _HomeShell extends StatelessWidget {
           index,
           initialLocation: index == navigationShell.currentIndex,
         ),
-        // Outlined throughout — there is no filled "selected" icon, because
-        // selection is carried by the gold rule under the label.
-        items: [
-          AppNavigationItem(
-            icon: Icons.wb_sunny_outlined,
-            label: l10n.navToday,
-          ),
-          AppNavigationItem(
-            icon: Icons.menu_book_outlined,
-            label: l10n.navLibrary,
-          ),
-          AppNavigationItem(
-            icon: Icons.insights_outlined,
-            label: l10n.navStats,
-          ),
-          AppNavigationItem(
-            icon: Icons.settings_outlined,
-            label: l10n.navSettings,
-          ),
+        // Words, not icons: v2 dropped the glyphs because none of them meant
+        // the thing its label already says.
+        labels: [
+          l10n.navToday,
+          l10n.navLibrary,
+          l10n.navStats,
+          l10n.navSettings,
         ],
       ),
     );

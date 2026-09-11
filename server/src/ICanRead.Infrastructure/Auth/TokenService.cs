@@ -13,7 +13,35 @@ namespace ICanRead.Infrastructure.Auth;
 /// </summary>
 public class TokenService(IOptions<JwtOptions> options, TimeProvider clock)
 {
+    /// <summary>
+    /// The claim naming the session an access token belongs to.
+    /// </summary>
+    /// <remarks>
+    /// Written as the bare <c>sid</c>, but read back as
+    /// <see cref="System.Security.Claims.ClaimTypes.Sid"/>: the JWT handler's
+    /// inbound map rewrites it on the way in. Anything reading it should use
+    /// <c>SessionIdFrom</c> rather than either name directly.
+    /// </remarks>
+    public const string SessionClaim = "sid";
+
     private readonly JwtOptions _options = options.Value;
+
+    /// <summary>
+    /// The session an incoming request's token names, if it names one.
+    /// </summary>
+    /// <remarks>
+    /// Null for a token minted before the claim existed. Those are valid for
+    /// the half hour they have left, and the endpoints that need a session
+    /// treat "which one?" as unanswerable rather than as an error — the reader
+    /// gets a sessions list with nothing marked current until the next refresh.
+    /// </remarks>
+    public static Guid? SessionIdFrom(ClaimsPrincipal principal)
+    {
+        var raw = principal.FindFirstValue(ClaimTypes.Sid)
+                  ?? principal.FindFirstValue(SessionClaim);
+
+        return Guid.TryParse(raw, out var id) ? id : null;
+    }
 
     public DateTimeOffset AccessTokenExpiry =>
         clock.GetUtcNow().AddMinutes(_options.AccessTokenMinutes);
@@ -21,7 +49,18 @@ public class TokenService(IOptions<JwtOptions> options, TimeProvider clock)
     public DateTimeOffset RefreshTokenExpiry =>
         clock.GetUtcNow().AddDays(_options.RefreshTokenDays);
 
-    public string CreateAccessToken(User user)
+    /// <summary>
+    /// Mints an access token for one session.
+    /// </summary>
+    /// <param name="sessionId">
+    /// The refresh token row this token was issued alongside. It travels as the
+    /// <c>sid</c> claim so the sessions list can mark the device the request
+    /// arrived on, and so signing out "everywhere else" knows what "else"
+    /// means. It is an id, not a credential: knowing it lets a caller name a
+    /// session, and every endpoint that acts on one checks it belongs to the
+    /// account in the token first.
+    /// </param>
+    public string CreateAccessToken(User user, Guid sessionId)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));
 
@@ -29,6 +68,7 @@ public class TokenService(IOptions<JwtOptions> options, TimeProvider clock)
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
+            new(SessionClaim, sessionId.ToString()),
             // A unique token id, so a future revocation list has something to
             // name a single token by.
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())

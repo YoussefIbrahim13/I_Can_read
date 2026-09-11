@@ -63,41 +63,88 @@ class _Stats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final muted = Theme.of(context).appColors.muted;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.gutter,
-        AppSpacing.x4 + 4,
+        AppSpacing.x4,
         AppSpacing.gutter,
         AppSpacing.x8,
       ),
       children: [
+        // The streak leads, alone and large. Redesign v2 pulled it out of the
+        // three-across row because it is the only figure here that is about
+        // *keeping going*, which is what the whole app is for — the other
+        // three are measurements.
+        _Streak(stats: stats),
+        const SizedBox(height: AppSpacing.x4),
         _Figures(stats: stats),
-        // Under the figures, not among them: time is something the reader
-        // spent rather than something they counted, and it does not want to
-        // be set at 46pt next to the three that do.
-        if (stats.hasTimeRead) ...[
-          const SizedBox(height: AppSpacing.x3),
-          _TimeAndPace(stats: stats),
-        ],
         const SizedBox(height: AppSpacing.x6 - 2),
-        Kicker(l10n.statsPagesPerDay, color: Theme.of(context).appColors.muted),
+        const _ReadingCalendar(),
+        const SizedBox(height: AppSpacing.x6 - 2),
+        // After the calendar now: the calendar answers "have I been reading",
+        // which is the question this screen is opened with, and the chart is
+        // the same answer in more detail for the reader who wants it.
+        Kicker(l10n.statsPagesPerDay, color: muted),
         const SizedBox(height: AppSpacing.x3),
         _PagesChart(stats: stats),
-        const SizedBox(height: AppSpacing.x6 - 2),
-        // After the chart, not before it: the chart answers "how much am I
-        // reading", which is the question the screen is opened with, and the
-        // calendar answers the longer one underneath it.
-        const _ReadingCalendar(),
         if (stats.finished.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.x6 - 2),
-          Kicker(
-            l10n.statsFinishedSection,
-            color: Theme.of(context).appColors.muted,
-          ),
-          const SizedBox(height: AppSpacing.x1),
+          Kicker(l10n.statsFinishedSection, color: muted),
+          const SizedBox(height: AppSpacing.x2),
           for (final book in stats.finished) _FinishedRow(book: book),
         ],
+      ],
+    );
+  }
+}
+
+/// Days in a row, at display size, with what it adds up to underneath.
+class _Streak extends StatelessWidget {
+  const _Streak({required this.stats});
+
+  final ReadingStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Figure.number(stats.streakDays, size: 56, height: 0.82),
+        const SizedBox(width: AppSpacing.x3),
+        Expanded(
+          child: Padding(
+            // Sits the gloss on the figure's baseline rather than under its
+            // descender.
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.statsStreak,
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14),
+                ),
+                // Time is something the reader spent rather than something
+                // they counted, so it glosses the streak instead of standing
+                // as a figure of its own.
+                if (stats.hasTimeRead)
+                  Text(
+                    l10n.statsTimeRead(
+                      AppDurations.compact(stats.timeRead, l10n),
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 12,
+                      color: theme.appColors.muted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -122,17 +169,11 @@ class _ReadingCalendar extends ConsumerWidget {
       children: [
         Kicker(l10n.statsCalendar, color: theme.appColors.muted),
         const SizedBox(height: AppSpacing.x3),
-        // Scrollable rather than shrunk to fit: fifteen weeks at a legible
-        // square is wider than a narrow phone, and squares small enough to
-        // always fit would stop being readable on every phone.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          reverse: true,
-          child: ReadingCalendarGrid(
-            columns: ref.watch(libraryCalendarProvider),
-            cell: 12,
-          ),
-        ),
+        // Full-bleed to the text margin, dividing the width between the
+        // columns. v2 wants the grid to be the block it is; the old version
+        // scrolled sideways at a fixed square, which hid a third of the
+        // history behind a gesture nobody knew was there.
+        ReadingCalendarGrid(columns: ref.watch(libraryCalendarProvider)),
         const SizedBox(height: AppSpacing.x2),
         Text(
           l10n.statsCalendarHint,
@@ -147,7 +188,12 @@ class _ReadingCalendar extends ConsumerWidget {
   }
 }
 
-/// The three standing figures, divided by hairlines.
+/// The measurements, ruled into cells.
+///
+/// A boxed row rather than three loose columns: these are readings off the same
+/// instrument, and the rules between them say so. The pace cell is absent until
+/// enough pages have been timed to mean anything — see [ReadingPace] — because
+/// a per-page figure from two timed pages is a number, not a measurement.
 class _Figures extends StatelessWidget {
   const _Figures({required this.stats});
 
@@ -157,92 +203,73 @@ class _Figures extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).appColors;
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _Stat(value: stats.streakDays, label: l10n.statsStreak),
-          ),
-          VerticalDivider(width: 1, thickness: 1, color: colors.hairline),
-          Expanded(
-            child: _Stat(
-              value: stats.averagePagesPerDay,
-              label: l10n.statsAveragePages,
-              inset: true,
-            ),
-          ),
-          VerticalDivider(width: 1, thickness: 1, color: colors.hairline),
-          Expanded(
-            child: _Stat(
-              value: stats.finishedCount,
-              label: l10n.statsFinishedCount,
-              inset: true,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Time spent, and the pace it implies, on one quiet line.
-///
-/// The pace only joins once enough pages have been timed to mean anything —
-/// see [ReadingPace.minimumPages]. Until then the line is just the total,
-/// which needs no sample size to be true.
-class _TimeAndPace extends StatelessWidget {
-  const _TimeAndPace({required this.stats});
-
-  final ReadingStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-
-    final time = l10n.statsTimeRead(AppDurations.compact(stats.timeRead, l10n));
     final perPage = stats.pace.perPage;
 
-    return Text(
-      perPage == null
-          ? time
-          : '$time · ${l10n.statsPacePerPage(AppDurations.compact(perPage, l10n))}',
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: 12,
-        height: 1.6,
-        color: theme.appColors.muted,
+    final cells = <Widget>[
+      _Stat(
+        value: AppNumbers.format(stats.averagePagesPerDay),
+        label: l10n.statsAveragePages,
+      ),
+      _Stat(
+        value: AppNumbers.format(stats.finishedCount),
+        label: l10n.statsFinishedCount,
+      ),
+      if (perPage != null)
+        _Stat(
+          value: AppDurations.tight(perPage, l10n),
+          label: l10n.statsPerPage,
+        ),
+    ];
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.hairline),
+        borderRadius: BorderRadius.circular(AppSpacing.radius),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (index, cell) in cells.indexed) ...[
+              if (index > 0)
+                VerticalDivider(width: 1, thickness: 1, color: colors.hairline),
+              Expanded(child: cell),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label, this.inset = false});
+  const _Stat({required this.value, required this.label});
 
-  final int value;
+  /// Already formatted — these are not all integers. The pace cell carries a
+  /// duration, and it is the same kind of reading as the two beside it.
+  final String value;
   final String label;
-
-  /// Pads the columns that sit after a rule, so the figure does not touch it.
-  final bool inset;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: EdgeInsetsDirectional.only(start: inset ? AppSpacing.x4 : 0),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.x3,
+        horizontal: AppSpacing.x2,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Figure.number(value, size: 46, height: 0.9),
-          const SizedBox(height: 6),
+          Figure(value, size: 27, height: 1),
+          const SizedBox(height: 5),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 12,
-              height: 1.4,
+              fontSize: 11.5,
+              height: 1.35,
               color: theme.appColors.muted,
             ),
           ),
@@ -331,6 +358,10 @@ class _PagesChart extends StatelessWidget {
 }
 
 /// One finished book: what it was, and how long it took.
+///
+/// Marked at the leading edge by a short sage rule — the only place in the app
+/// besides a finished portion where green appears, and for exactly the same
+/// reason. It means *done*, never "well read" and never "on target".
 class _FinishedRow extends StatelessWidget {
   const _FinishedRow({required this.book});
 
@@ -344,15 +375,15 @@ class _FinishedRow extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3 - 2),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x3 - 1),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
+              Container(width: 2, height: 26, color: theme.appColors.done),
+              const SizedBox(width: AppSpacing.x3 - 2),
               Expanded(
                 child: Text(
                   book.title,
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14.5),
+                  style: theme.textTheme.titleSmall?.copyWith(fontSize: 15),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -1,7 +1,5 @@
 using ICanRead.Application.Auth;
-using ICanRead.Domain.Entities;
 using ICanRead.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ICanRead.Infrastructure.Auth;
@@ -21,20 +19,15 @@ namespace ICanRead.Infrastructure.Auth;
 /// the plans, the reminders, the reading log, and every session token.
 /// </para>
 /// </remarks>
-public class AccountDeletionService(
-    AppDbContext db,
-    IPasswordHasher<User> passwordHasher,
-    IGoogleTokenVerifier google)
+public class AccountDeletionService(AppDbContext db, AccountConfirmation confirmation)
 {
     /// <summary>
     /// Deletes the caller's account, once they have proved it is theirs.
     /// </summary>
     /// <remarks>
-    /// A valid access token is not proof enough on its own. It lasts half an
-    /// hour, so a phone left unlocked on a table is a valid access token, and
-    /// this is the one action in the app that cannot be undone. So the reader
-    /// re-proves it the same way they got in: the password if they have one,
-    /// and a fresh Google token if Google is their only way in.
+    /// The proof is not a formality — see <see cref="AccountConfirmation"/> for
+    /// why an access token on its own is not enough for the one action in the
+    /// app that cannot be undone.
     /// </remarks>
     public async Task<AccountDeletionOutcome> DeleteAsync(
         Guid userId,
@@ -44,7 +37,7 @@ public class AccountDeletionService(
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return AccountDeletionOutcome.NotFound;
 
-        if (!await ConfirmedAsync(user, request, ct))
+        if (!await confirmation.ConfirmsAsync(user, request.Proof, ct))
         {
             return AccountDeletionOutcome.NotConfirmed;
         }
@@ -65,29 +58,5 @@ public class AccountDeletionService(
 
         await transaction.CommitAsync(ct);
         return AccountDeletionOutcome.Deleted;
-    }
-
-    private async Task<bool> ConfirmedAsync(
-        User user,
-        DeleteAccountRequest request,
-        CancellationToken ct)
-    {
-        if (user.PasswordHash is not null)
-        {
-            if (string.IsNullOrEmpty(request.Password)) return false;
-
-            return passwordHasher.VerifyHashedPassword(
-                user, user.PasswordHash, request.Password)
-                != PasswordVerificationResult.Failed;
-        }
-
-        // Google-only account. The token is verified against Google and then
-        // matched on the subject, never on the email: an email can be changed
-        // or reassigned, and matching on it would let one Workspace user delete
-        // another's account by inheriting their address.
-        if (string.IsNullOrEmpty(request.GoogleIdToken)) return false;
-
-        var principal = await google.VerifyAsync(request.GoogleIdToken, ct);
-        return principal is not null && principal.Subject == user.GoogleSubject;
     }
 }

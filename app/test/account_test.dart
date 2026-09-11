@@ -587,10 +587,31 @@ void main() {
     testWidgets('offers an account without nagging about it', (tester) async {
       final l10n = await openSettings(tester);
 
-      expect(find.text(l10n.settingsSignIn), findsOneWidget);
+      // Redesign v2 made this a door rather than a section: one line saying
+      // where the reader stands, and no argument about it.
+      expect(find.text(l10n.settingsAccount), findsOneWidget);
       expect(find.text(l10n.settingsSignedOut), findsOneWidget);
+      // The sign-in form lives behind the row now, not on this screen.
+      expect(find.text(l10n.settingsSignIn), findsNothing);
     });
 
+    testWidgets('names the signed-in reader on the row, not the form', (
+      tester,
+    ) async {
+      await controller().submit(
+        mode: AccountMode.signIn,
+        email: 'reader@example.com',
+        password: 'longenoughpassword',
+      );
+
+      final l10n = await openSettings(tester);
+
+      expect(find.text(l10n.settingsAccount), findsOneWidget);
+      expect(find.text('reader@example.com'), findsOneWidget);
+    });
+  });
+
+  group('the account screen, signed in', () {
     testWidgets('says how many changes are still waiting, not just "saved"', (
       tester,
     ) async {
@@ -613,7 +634,22 @@ void main() {
         now: _jan1,
       );
 
-      final l10n = await openSettings(tester);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: AppTheme.of(
+              brightness: Brightness.light,
+              locale: const Locale('en'),
+            ),
+            home: const AccountScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
       // Two rows queued and nothing sent yet. Saying "up to date" here would
       // be a claim the reader could only check by losing the work.
@@ -622,6 +658,9 @@ void main() {
         find.text(l10n.accountWelcome('reader@example.com')),
         findsOneWidget,
       );
+      // Reached while already signed in, the screen is the account — not a
+      // form asking the reader to get one.
+      expect(find.text(l10n.accountModeRegister), findsNothing);
     });
   });
 

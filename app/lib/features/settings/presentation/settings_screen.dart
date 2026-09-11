@@ -4,13 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../core/branding/app_mark.dart';
+import '../../../core/config/app_version.dart';
 import '../../../core/config/legal_links.dart';
 import '../../../core/settings/app_settings.dart';
-import '../../../core/sync/sync_engine.dart';
-import '../../../core/sync/sync_status.dart';
-import '../../account/application/account_controller.dart';
-import '../../backup/application/backup_controller.dart';
-import '../../backup/domain/backup_file.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/kicker.dart';
@@ -22,6 +19,15 @@ import '../../../l10n/app_localizations.dart';
 /// than `null` keeps the control from reading the choice as "nothing selected".
 const _systemLanguage = 'system';
 
+/// Screen 11 — the few things about the app the reader gets to decide.
+///
+/// Redesign v2 sorted it into two kinds of thing. At the top are the choices
+/// that change what is in front of you right now — language, day or night, how
+/// cream the paper is — each one a control you can see the result of without
+/// leaving. Below them are the doors: account, backup, privacy, one line of
+/// what each is about. What used to be here inline, a sync status and two
+/// backup buttons and a way to delete your account, are all behind those doors
+/// now, because none of them is a setting.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -39,70 +45,86 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             ScreenHeader(title: l10n.navSettings),
             Expanded(
+              // No horizontal padding: the rows below run edge to edge, and
+              // each block of controls insets itself instead.
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.gutter,
-                  AppSpacing.x4,
-                  AppSpacing.gutter,
-                  AppSpacing.x6,
-                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.x6),
                 children: [
-                  Kicker(l10n.settingsLanguage),
-                  const SizedBox(height: 11),
-                  AppSegmentedControl<String>(
-                    value: settings.locale?.languageCode ?? _systemLanguage,
-                    onChanged: (value) => notifier.setLocale(
-                      value == _systemLanguage ? null : Locale(value),
-                    ),
-                    segments: [
-                      AppSegment(
-                        value: 'ar',
-                        label: l10n.settingsLanguageArabic,
-                        // Each language names itself in its own script, so the
-                        // segment has to opt out of the locale's type stack.
-                        textStyle: const TextStyle(fontFamily: AppFonts.arabic),
+                  _Block(
+                    children: [
+                      const SizedBox(height: AppSpacing.x4),
+                      Kicker(l10n.settingsLanguage),
+                      const SizedBox(height: 11),
+                      AppSegmentedControl<String>(
+                        value: settings.locale?.languageCode ?? _systemLanguage,
+                        onChanged: (value) => notifier.setLocale(
+                          value == _systemLanguage ? null : Locale(value),
+                        ),
+                        segments: [
+                          AppSegment(
+                            value: 'ar',
+                            label: l10n.settingsLanguageArabic,
+                            // Each language names itself in its own script, so
+                            // the segment has to opt out of the locale's stack.
+                            textStyle: const TextStyle(
+                              fontFamily: AppFonts.arabic,
+                            ),
+                          ),
+                          AppSegment(
+                            value: 'en',
+                            label: l10n.settingsLanguageEnglish,
+                            textStyle: const TextStyle(
+                              fontFamily: AppFonts.serif,
+                            ),
+                          ),
+                          AppSegment(
+                            value: _systemLanguage,
+                            label: l10n.settingsLanguageSystem,
+                          ),
+                        ],
                       ),
-                      AppSegment(
-                        value: 'en',
-                        label: l10n.settingsLanguageEnglish,
-                        textStyle: const TextStyle(fontFamily: AppFonts.serif),
+                      const SizedBox(height: AppSpacing.x4 + 2),
+                      Kicker(l10n.settingsTheme),
+                      const SizedBox(height: 11),
+                      AppSegmentedControl<ThemeMode>(
+                        value: settings.themeMode,
+                        onChanged: notifier.setThemeMode,
+                        segments: [
+                          AppSegment(
+                            value: ThemeMode.light,
+                            label: l10n.settingsThemeLight,
+                          ),
+                          AppSegment(
+                            value: ThemeMode.dark,
+                            label: l10n.settingsThemeDark,
+                          ),
+                          AppSegment(
+                            value: ThemeMode.system,
+                            label: l10n.settingsThemeSystem,
+                          ),
+                        ],
                       ),
-                      AppSegment(
-                        value: _systemLanguage,
-                        label: l10n.settingsLanguageSystem,
+                      const SizedBox(height: AppSpacing.x4 + 2),
+                      _WarmthSlider(
+                        warmth: settings.paperWarmth,
+                        onChanged: notifier.setPaperWarmth,
                       ),
+                      const SizedBox(height: AppSpacing.x6 - 4),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.x6 - 4),
-                  Kicker(l10n.settingsTheme),
-                  const SizedBox(height: 11),
-                  AppSegmentedControl<ThemeMode>(
-                    value: settings.themeMode,
-                    onChanged: notifier.setThemeMode,
-                    segments: [
-                      AppSegment(
-                        value: ThemeMode.dark,
-                        label: l10n.settingsThemeDark,
-                      ),
-                      AppSegment(
-                        value: ThemeMode.light,
-                        label: l10n.settingsThemeLight,
-                      ),
-                      AppSegment(
-                        value: ThemeMode.system,
-                        label: l10n.settingsThemeSystem,
-                      ),
-                    ],
+                  const Divider(),
+                  const _AccountRow(),
+                  const Divider(),
+                  _NavRow(
+                    title: l10n.settingsBackup,
+                    subtitle: l10n.settingsBackupSubtitle,
+                    onTap: () => context.push('/settings/backup'),
                   ),
-                  const SizedBox(height: AppSpacing.x6 - 4),
-                  Kicker(l10n.settingsAccount),
-                  const SizedBox(height: 11),
-                  const AccountSection(),
-                  const SizedBox(height: AppSpacing.x6 - 4),
-                  Kicker(l10n.settingsBackup),
-                  const SizedBox(height: 11),
-                  const _BackupSection(),
-                  const _PrivacyPolicyLink(),
+                  const Divider(),
+                  const _PrivacyPolicyRow(),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.x8),
+                  const _Colophon(),
                 ],
               ),
             ),
@@ -113,11 +135,104 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+/// Insets a group of controls to the text gutter, inside a full-bleed list.
+class _Block extends StatelessWidget {
+  const _Block({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    ),
+  );
+}
+
+/// How cream the paper is, across the whole app.
+///
+/// The value is a word, never a number: the reader is choosing a feel, and
+/// "62" is not one. The label sits opposite the kicker so the current setting
+/// is readable without moving the thumb to find out.
+class _WarmthSlider extends StatelessWidget {
+  const _WarmthSlider({required this.warmth, required this.onChanged});
+
+  final int warmth;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    final word = switch (PaperWarmth.bandOf(warmth)) {
+      PaperWarmthBand.cool => l10n.settingsWarmthCool,
+      PaperWarmthBand.light => l10n.settingsWarmthLight,
+      PaperWarmthBand.medium => l10n.settingsWarmthMedium,
+      PaperWarmthBand.warm => l10n.settingsWarmthWarm,
+      PaperWarmthBand.warmest => l10n.settingsWarmthWarmest,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Kicker(l10n.settingsWarmth)),
+            Text(
+              word,
+              style: theme.textTheme.titleMedium?.copyWith(fontSize: 16),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.x1),
+        Slider(
+          value: PaperWarmth.clamped(warmth).toDouble(),
+          min: PaperWarmth.min.toDouble(),
+          max: PaperWarmth.max.toDouble(),
+          divisions: (PaperWarmth.max - PaperWarmth.min) ~/ PaperWarmth.step,
+          label: word,
+          onChanged: (value) => onChanged(value.round()),
+        ),
+        const SizedBox(height: AppSpacing.x1),
+        Text(
+          l10n.settingsWarmthHint,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
+            height: 1.6,
+            color: theme.appColors.muted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The account, in one line: the address if there is one, and the plain fact
+/// if there is not.
+class _AccountRow extends ConsumerWidget {
+  const _AccountRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final session = ref.watch(authStateProvider);
+
+    return _NavRow(
+      title: l10n.settingsAccount,
+      subtitle: session?.email ?? l10n.settingsSignedOut,
+      onTap: () => context.push('/account'),
+    );
+  }
+}
+
 /// The way to the published privacy policy.
 ///
-/// Last on the screen, and absent entirely in a build that was not given a URL.
-class _PrivacyPolicyLink extends ConsumerWidget {
-  const _PrivacyPolicyLink();
+/// Absent entirely in a build that was not given a URL.
+class _PrivacyPolicyRow extends ConsumerWidget {
+  const _PrivacyPolicyRow();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -126,164 +241,102 @@ class _PrivacyPolicyLink extends ConsumerWidget {
 
     final l10n = AppLocalizations.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.x6 - 4),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: TextButton(
-          // External on purpose: an in-app browser would put our chrome around
-          // a document whose whole point is that the reader can check it for
-          // themselves, and share it with anyone.
-          onPressed: () =>
-              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).appColors.muted,
-          ),
-          child: Text(l10n.settingsPrivacyPolicy),
+    return _NavRow(
+      title: l10n.settingsPrivacyPolicy,
+      subtitle: l10n.settingsPrivacyPolicyHint,
+      // External on purpose: an in-app browser would put our chrome around a
+      // document whose whole point is that the reader can check it for
+      // themselves, and share it with anyone.
+      onTap: () =>
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+    );
+  }
+}
+
+/// A door: what is behind it, one line about it, and a chevron.
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.gutter,
+          vertical: AppSpacing.x4 - 2,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 16),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 12.5,
+                      color: theme.appColors.muted,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.x3),
+            // `chevron_right` carries `matchTextDirection`, so it points the
+            // way the reader is going without a manual flip.
+            Icon(Icons.chevron_right, size: 18, color: theme.appColors.muted),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Writing the library out to a file, and reading one back in.
-///
-/// Not the same thing as the account, and sits apart from it on purpose: a
-/// reader with no account has no other way out of this app, and a reader with
-/// one may still want a copy that does not depend on a server being up.
-class _BackupSection extends ConsumerWidget {
-  const _BackupSection();
+/// The mark, both names, and the one fact worth repeating at the foot of the
+/// app: the files never leave the phone.
+class _Colophon extends StatelessWidget {
+  const _Colophon();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final state = ref.watch(backupControllerProvider);
-    final controller = ref.read(backupControllerProvider.notifier);
-    final busy = state is BackupWorking;
-
-    final note = switch (state) {
-      BackupWorking() => l10n.settingsSyncing,
-      BackupExported(:final items) => l10n.backupExported(items),
-      BackupImported(:final items) => l10n.backupImported(items),
-      BackupFailed(problem: BackupProblem.tooNew) => l10n.backupErrorTooNew,
-      BackupFailed(problem: BackupProblem.notABackup) =>
-        l10n.backupErrorNotABackup,
-      BackupFailed() => l10n.backupErrorFailed,
-      BackupIdle() => l10n.settingsBackupHint,
-    };
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const AppMark(size: 34),
+        const SizedBox(height: AppSpacing.x2 + 2),
         Text(
-          note,
+          // Both names, always, in either language: the app is called one
+          // thing, and it is called it in two scripts.
+          'Yaqra · يقرأ',
+          style: theme.textTheme.titleMedium?.copyWith(fontSize: 15),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          l10n.settingsFooterLine(appVersion),
+          textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
-            height: 1.6,
-            color: state is BackupFailed
-                ? theme.colorScheme.error
-                : theme.appColors.muted,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x3),
-        OutlinedButton(
-          onPressed: busy ? null : controller.export,
-          child: Text(l10n.backupExport),
-        ),
-        const SizedBox(height: AppSpacing.x2),
-        TextButton(
-          onPressed: busy ? null : controller.import,
-          child: Text(l10n.backupImport),
-        ),
-      ],
-    );
-  }
-}
-
-/// The account block on the settings screen: who is signed in, whether
-/// anything is still waiting to be sent, and the way in or out.
-class AccountSection extends ConsumerWidget {
-  const AccountSection({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final session = ref.watch(authStateProvider);
-
-    if (session == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(l10n.settingsSignedOut, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: AppSpacing.x1),
-          Text(
-            l10n.settingsSignedOutHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              height: 1.6,
-              color: theme.appColors.muted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.x3),
-          OutlinedButton(
-            onPressed: () => context.push('/account'),
-            child: Text(l10n.settingsSignIn),
-          ),
-        ],
-      );
-    }
-
-    final status = ref.watch(syncControllerProvider);
-    final pending = ref.watch(pendingSyncCountProvider).value ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          l10n.accountWelcome(session.email),
-          style: theme.textTheme.bodyMedium,
-        ),
-        const SizedBox(height: AppSpacing.x1),
-        Text(
-          // What is actually true right now, in this order: a sync in flight
-          // outranks a queue, and a queue outranks "up to date" — saying
-          // everything is saved while rows are still waiting would be a lie
-          // the reader only discovers by losing them.
-          switch (status) {
-            SyncInProgress() => l10n.settingsSyncing,
-            SyncFailed() => l10n.settingsSyncFailed,
-            _ when pending > 0 => l10n.settingsSyncPending(pending),
-            _ => l10n.settingsSyncDone,
-          },
-          style: theme.textTheme.bodySmall?.copyWith(
-            height: 1.6,
-            color: status is SyncFailed
-                ? theme.colorScheme.error
-                : theme.appColors.muted,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x3),
-        OutlinedButton(
-          onPressed: status is SyncInProgress
-              ? null
-              : () => ref.read(syncControllerProvider.notifier).syncNow(),
-          child: Text(l10n.settingsSyncNow),
-        ),
-        const SizedBox(height: AppSpacing.x2),
-        TextButton(
-          onPressed: () =>
-              ref.read(accountControllerProvider.notifier).signOut(),
-          child: Text(l10n.settingsSignOut),
-        ),
-        // Last, and set apart from signing out: the two read as neighbours if
-        // they sit together, and one of them cannot be undone.
-        const SizedBox(height: AppSpacing.x2),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton(
-            onPressed: () => context.push('/account/delete'),
-            style: TextButton.styleFrom(foregroundColor: theme.appColors.muted),
-            child: Text(l10n.deleteAccount),
+            fontSize: 11.5,
+            color: theme.appColors.muted,
           ),
         ),
       ],

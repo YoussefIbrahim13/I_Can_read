@@ -347,6 +347,33 @@ class AppDatabase extends _$AppDatabase {
     return row != null;
   }
 
+  /// The page this device last had open, or null if the book was never opened.
+  ///
+  /// A bookmark, not progress: it moves backwards as happily as forwards and
+  /// nothing is credited for it. Device-only on purpose — where a reader had
+  /// the book open on this phone is not a fact about their plan.
+  Future<int?> lastPageOpen(String bookId) async {
+    final row = await (select(
+      readerStates,
+    )..where((s) => s.bookId.equals(bookId))).getSingleOrNull();
+    return row?.lastPage;
+  }
+
+  /// Remembers where the book is open, so reopening lands on the same page.
+  Future<void> rememberLastPage({
+    required String bookId,
+    required int page,
+    required DateTime now,
+  }) {
+    return into(readerStates).insertOnConflictUpdate(
+      ReaderStatesCompanion.insert(
+        bookId: bookId,
+        lastPage: Value(page),
+        updatedAt: now,
+      ),
+    );
+  }
+
   // -------------------------------------------------------------------------
   // Plans
   // -------------------------------------------------------------------------

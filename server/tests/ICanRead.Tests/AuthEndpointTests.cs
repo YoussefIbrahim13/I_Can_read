@@ -196,7 +196,7 @@ public class AuthEndpointTests(ApiFactory factory)
     // ------------------------------------------------------------------
 
     private Task<HttpResponseMessage> GoogleAsync(string idToken) =>
-        _client.PostAsJsonAsync("/api/auth/google", new GoogleSignInRequest(idToken));
+        _client.PostAsJsonAsync("/api/auth/google", new GoogleTokenRequest(idToken));
 
     [Fact]
     public async Task Google_creates_an_account_the_first_time_and_reuses_it_after()

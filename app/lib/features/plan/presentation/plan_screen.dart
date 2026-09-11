@@ -10,10 +10,12 @@ import '../../../core/planning/plan_math.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/figure.dart';
 import '../../../core/widgets/kicker.dart';
-import '../../../core/widgets/screen_header.dart';
+import '../../../core/widgets/page_sheet.dart';
+import '../../../core/widgets/progress_shapes.dart';
 import '../../../core/widgets/segmented_control.dart';
 import '../../../core/widgets/stepper_field.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../today/application/today_providers.dart';
 import '../application/plan_providers.dart';
 import '../domain/plan_draft.dart';
 
@@ -22,6 +24,12 @@ import '../domain/plan_draft.dart';
 /// The preview is the screen: the sentence at the top is the whole plan in
 /// words, and every control below only moves that sentence. The reader should
 /// never have to assemble the outcome from three separate fields.
+///
+/// Redesign v2 went further and made the sentence the *only* reading of the
+/// plan. There is one slider under it; whichever value the chosen mode owns is
+/// what the slider moves, and the other value — the date, the day count, the
+/// brass stretch — recomputes as the thumb travels. Fields the reader had to
+/// fill in became a sentence they watch change.
 class PlanScreen extends ConsumerWidget {
   const PlanScreen({required this.bookId, super.key});
 
@@ -29,7 +37,6 @@ class PlanScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
     final book = ref.watch(bookProvider(bookId));
     final plan = ref.watch(activePlanProvider(bookId));
 
@@ -39,25 +46,11 @@ class PlanScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ScreenBackBar(
-              title: plan.value == null ? l10n.planCreate : l10n.planEdit,
-            ),
-            const Divider(),
-            Expanded(
-              child: switch ((loaded, book.value)) {
-                (false, _) => const SizedBox.shrink(),
-                (true, null) => const SizedBox.shrink(),
-                (true, final found?) => _PlanForm(
-                  book: found,
-                  existing: plan.value,
-                ),
-              },
-            ),
-          ],
-        ),
+        child: switch ((loaded, book.value)) {
+          (false, _) => const SizedBox.shrink(),
+          (true, null) => const SizedBox.shrink(),
+          (true, final found?) => _PlanForm(book: found, existing: plan.value),
+        },
       ),
     );
   }
@@ -84,7 +77,10 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
     if (existing == null) {
       return PlanDraft.forBook(
         pageCount: widget.book.pageCount,
-        today: DateTime.now(),
+        // The app's own idea of today, not the wall clock: every other screen
+        // reads the day through this provider, and a plan that started from a
+        // different "now" than Today uses would be a day out at the boundary.
+        today: ref.read(todayProvider),
       );
     }
     return PlanDraft.fromSpec(
@@ -144,20 +140,53 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
     if (navigator.canPop()) navigator.pop();
   }
 
+  /// Moves whichever value this mode owns. The other one is derived, so the
+  /// slider is the single control the sentence answers to.
+  void _slideTo(int value) => _edit(
+    _draft.mode == PlanMode.byPagesPerDay
+        ? _draft.withPagesPerDay(value)
+        : _draft.withDayCount(value),
+  );
+
+  /// What the slider currently reads.
+  int get _sliderValue => _draft.mode == PlanMode.byPagesPerDay
+      ? _draft.pagesPerDay
+      : inclusiveDayCount(_draft.startDate, _draft.targetEndDate);
+
+  /// The far end of the track.
+  ///
+  /// Not the true maximum — a 900-page book at one page per pixel would make
+  /// the slider useless for the range anyone actually picks from. The track
+  /// covers the usual answers, and stretches to hold a stored plan that is
+  /// already past it, so reopening an unusual goal never pins the thumb at the
+  /// end and quietly rewrites it.
+  int get _sliderMax {
+    final reach = _draft.mode == PlanMode.byPagesPerDay
+        ? (_draft.totalPages < 100 ? _draft.totalPages : 100)
+        : 180;
+    final value = _sliderValue;
+    return value > reach ? value : reach;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final spec = _draft.spec;
+    final byPages = _draft.mode == PlanMode.byPagesPerDay;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PreviewBand(book: widget.book, draft: _draft),
+        _Masthead(
+          book: widget.book,
+          title: widget.existing == null ? l10n.planCreate : l10n.planEdit,
+        ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.gutter,
-              AppSpacing.x6 - 4,
+              0,
               AppSpacing.gutter,
               AppSpacing.x6,
             ),
@@ -176,40 +205,29 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.x6 - 2),
-              if (_draft.mode == PlanMode.byDeadline)
-                _DeadlineFields(
-                  draft: _draft,
-                  onPickDate: _pickDate,
-                  onPreset: (days) => _edit(_draft.withDayCount(days)),
-                )
-              else
-                _PagesPerDayField(
-                  draft: _draft,
-                  onChanged: (pages) => _edit(_draft.withPagesPerDay(pages)),
-                ),
-              const SizedBox(height: AppSpacing.x6 - 2),
+              const SizedBox(height: AppSpacing.x4),
+              _Dial(
+                draft: _draft,
+                value: _sliderValue.toDouble(),
+                max: _sliderMax.toDouble(),
+                onChanged: _slideTo,
+                onPickDate: _pickDate,
+                onPickMode: (mode) => _edit(_draft.withMode(mode)),
+                stepLabels: byPages
+                    ? (l10n.planPagesPerDayFewer, l10n.planPagesPerDayMore)
+                    : (l10n.planDaysFewer, l10n.planDaysMore),
+              ),
+              const SizedBox(height: AppSpacing.x6 - 4),
               const Divider(),
+              const SizedBox(height: AppSpacing.x4),
+              if (spec != null) _Span(draft: _draft, spec: spec),
               const SizedBox(height: AppSpacing.x4),
               _StartPageField(
                 draft: _draft,
                 onChanged: (page) => _edit(_draft.withStartPage(page)),
               ),
-            ],
-          ),
-        ),
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.gutter,
-            AppSpacing.x3 - 2,
-            AppSpacing.gutter,
-            AppSpacing.x4,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              OutlinedButton(
+              const SizedBox(height: AppSpacing.x6 - 4),
+              FilledButton(
                 onPressed: spec == null || _saving ? null : _save,
                 child: Text(
                   widget.existing == null
@@ -226,6 +244,19 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                   )?.push('/books/${widget.book.id}/plan/sessions'),
                   child: Text(l10n.sessionsEdit),
                 ),
+              const SizedBox(height: AppSpacing.x3),
+              // The rule the whole app is built on, said once, where the reader
+              // is deciding how hard to push. It is the answer to the question
+              // a daily quota always raises.
+              Text(
+                l10n.planMissedDayNote,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 11.5,
+                  height: 1.7,
+                  color: theme.appColors.muted,
+                ),
+              ),
             ],
           ),
         ),
@@ -234,46 +265,113 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
   }
 }
 
-/// The hero band: what the plan means, in one sentence, before any control.
-class _PreviewBand extends StatelessWidget {
-  const _PreviewBand({required this.book, required this.draft});
+/// Cancel, the screen's name, and the book it is about.
+class _Masthead extends StatelessWidget {
+  const _Masthead({required this.book, required this.title});
 
   final Book book;
-  final PlanDraft draft;
+  final String title;
 
-  /// Placeholders for the two values the sentence sets apart. Control
-  /// characters, so they cannot collide with anything a translator writes.
-  static const _pagesSlot = '\u0001';
-  static const _dateSlot = '\u0002';
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.gutter,
+        AppSpacing.x2,
+        AppSpacing.gutter,
+        AppSpacing.x4,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A word, not an arrow: this screen is a decision the reader can
+          // walk away from, and "cancel" says that where a chevron does not.
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.primary,
+                minimumSize: const Size(0, AppSpacing.minTapTarget),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              child: Text(l10n.actionCancel),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x1),
+          Text(title, style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 2),
+          Text(
+            book.title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 13,
+              color: theme.appColors.muted,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The plan as a sentence, with the one control that moves it.
+///
+/// Set on a page rather than in a card: this is the reader deciding what they
+/// are going to do, and v2's page furniture — paper ground, a gutter down the
+/// spine — is how the app says "this is about reading".
+///
+/// Both figures in the sentence are underlined in brass because both are live:
+/// tapping the date opens the picker, and tapping either one hands the slider
+/// over to that value. The mode slab above does the same thing more plainly;
+/// this is the shortcut for a reader who is already looking at the number they
+/// want to change.
+class _Dial extends StatelessWidget {
+  const _Dial({
+    required this.draft,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    required this.onPickDate,
+    required this.onPickMode,
+    required this.stepLabels,
+  });
+
+  final PlanDraft draft;
+  final double value;
+  final double max;
+  final ValueChanged<int> onChanged;
+  final VoidCallback onPickDate;
+  final ValueChanged<PlanMode> onPickMode;
+
+  /// Decrease and increase, spoken — the two keys carry a glyph only.
+  final (String, String) stepLabels;
+
+  /// Placeholders for the two values the sentence sets apart. Same shape as
+  /// `figureMarker`: visible ASCII, so a failing test prints the marker rather
+  /// than an invisible byte, and clearly not something a translator would type.
+  static const _pagesSlot = '{#pages}';
+  static const _dateSlot = '{#date}';
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context);
     final theme = Theme.of(context);
-    final colors = theme.appColors;
     final spec = draft.spec;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.gutter,
-        AppSpacing.x6 - 4,
-        AppSpacing.gutter,
-        AppSpacing.x6 - 2,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: colors.hairline)),
-      ),
+    return PageSheet(
+      padding: const EdgeInsetsDirectional.fromSTEB(26, 20, 18, 18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Kicker('${book.title} · ${l10n.bookPageCount(book.pageCount)}'),
-          const SizedBox(height: AppSpacing.x3),
           if (spec == null)
             Text(l10n.planCreate, style: theme.textTheme.titleLarge)
-          else ...[
+          else
             Text.rich(
               TextSpan(
                 children: _fill(
@@ -281,30 +379,74 @@ class _PreviewBand extends StatelessWidget {
                   slots: {
                     // The daily portion is the number the reader is deciding,
                     // so it is the one thing set as a standing figure.
-                    _pagesSlot: figureSpan(
-                      AppNumbers.format(spec.pagesPerDay),
-                      size: 30,
-                      color: theme.colorScheme.primary,
+                    _pagesSlot: WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: _Live(
+                        onTap: () => onPickMode(PlanMode.byPagesPerDay),
+                        child: Figure.number(
+                          spec.pagesPerDay,
+                          size: 26,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     ),
-                    _dateSlot: TextSpan(
-                      text: AppDates.dayAndMonth(spec.targetEndDate, locale),
-                      style: TextStyle(color: theme.colorScheme.primary),
+                    _dateSlot: WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: _Live(
+                        onTap: onPickDate,
+                        child: Text(
+                          AppDates.dayAndMonth(spec.targetEndDate, locale),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
                     ),
                   },
                 ),
               ),
-              style: theme.textTheme.titleLarge,
+              style: theme.textTheme.titleLarge?.copyWith(height: 1.8),
             ),
-            const SizedBox(height: AppSpacing.x3 - 2),
-            Text(
-              '${l10n.planDayCount(inclusiveDayCount(spec.startDate, spec.targetEndDate))} · '
-              '${draft.startPage == 1 ? l10n.planTotalPages(spec.totalPages) : l10n.planPagesFromPage(spec.totalPages, draft.startPage)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 12.5,
-                color: colors.muted,
+          const SizedBox(height: AppSpacing.x4),
+          Row(
+            children: [
+              _Step(
+                icon: Icons.remove,
+                label: stepLabels.$1,
+                onPressed: value > 1 ? () => onChanged(value.round() - 1) : null,
               ),
+              Expanded(
+                child: Slider(
+                  value: value.clamp(1, max),
+                  min: 1,
+                  max: max,
+                  // One stop per page, or per day: the reader is choosing a
+                  // whole number, and a continuous track would let the thumb
+                  // sit between two answers.
+                  divisions: max > 1 ? (max - 1).round() : null,
+                  onChanged: (next) => onChanged(next.round()),
+                ),
+              ),
+              _Step(
+                icon: Icons.add,
+                label: stepLabels.$2,
+                onPressed: value < max
+                    ? () => onChanged(value.round() + 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.x2),
+          Text(
+            l10n.planSliderHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11.5,
+              height: 1.6,
+              color: theme.appColors.muted,
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -319,10 +461,11 @@ class _PreviewBand extends StatelessWidget {
     String template, {
     required Map<String, InlineSpan> slots,
   }) {
+    final pattern = RegExp(slots.keys.map(RegExp.escape).join('|'));
     final spans = <InlineSpan>[];
     var index = 0;
 
-    for (final match in RegExp('[${slots.keys.join()}]').allMatches(template)) {
+    for (final match in pattern.allMatches(template)) {
       if (match.start > index) {
         spans.add(TextSpan(text: template.substring(index, match.start)));
       }
@@ -336,122 +479,73 @@ class _PreviewBand extends StatelessWidget {
   }
 }
 
-class _DeadlineFields extends StatelessWidget {
-  const _DeadlineFields({
-    required this.draft,
-    required this.onPickDate,
-    required this.onPreset,
-  });
+/// A value inside the sentence that answers to a tap, marked by the brass rule
+/// under it — the printed convention for "this is the blank being filled in".
+class _Live extends StatelessWidget {
+  const _Live({required this.child, required this.onTap});
 
-  final PlanDraft draft;
-  final VoidCallback onPickDate;
-  final ValueChanged<int> onPreset;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final locale = Localizations.localeOf(context);
-    final theme = Theme.of(context);
-    final colors = theme.appColors;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.planTargetDate,
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontSize: 12,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x2 - 1),
-        InkWell(
-          onTap: onPickDate,
-          borderRadius: BorderRadius.circular(AppSpacing.radius),
-          child: Container(
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x3),
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.hairline),
-              borderRadius: BorderRadius.circular(AppSpacing.radius),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    AppDates.full(draft.targetEndDate, locale),
-                    style: theme.textTheme.bodyLarge?.copyWith(fontSize: 15),
-                  ),
-                ),
-                Icon(
-                  Icons.calendar_today_outlined,
-                  size: 16,
-                  color: colors.accentStroke,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.x3),
-        // The presets are the three answers most readers actually want; the
-        // picker above is for everyone else.
-        Wrap(
-          spacing: AppSpacing.x2 - 1,
-          runSpacing: AppSpacing.x2 - 1,
-          children: [
-            for (final days in planDayPresets)
-              _PresetChip(
-                label: l10n.planDayCount(days),
-                selected: draft.matchesDayCount(days),
-                onTap: () => onPreset(days),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _PresetChip extends StatelessWidget {
-  const _PresetChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
+  final Widget child;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Theme.of(context).appColors.accentStroke),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// One of the two square keys flanking the slider, for the reader who wants
+/// exactly one more rather than whatever the thumb lands on.
+class _Step extends StatelessWidget {
+  const _Step({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.appColors;
+    final enabled = onPressed != null;
 
     return Semantics(
-      selected: selected,
       button: true,
+      label: label,
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(3),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppSpacing.radius),
         child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x3 - 2),
+          width: AppSpacing.minTapTarget,
+          height: AppSpacing.minTapTarget,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? colors.accentStroke : colors.hairline,
-            ),
-            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: theme.appColors.hairline),
+            borderRadius: BorderRadius.circular(AppSpacing.radius),
           ),
-          child: Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontSize: 12,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
+          child: Icon(
+            icon,
+            size: 17,
+            // Disabled loses opacity rather than turning grey — grey is
+            // exactly what v2 removed from the palette.
+            color: enabled
+                ? theme.colorScheme.onSurfaceVariant
+                : theme.appColors.muted.withValues(alpha: 0.4),
           ),
         ),
       ),
@@ -459,31 +553,48 @@ class _PresetChip extends StatelessWidget {
   }
 }
 
-class _PagesPerDayField extends StatelessWidget {
-  const _PagesPerDayField({required this.draft, required this.onChanged});
+/// What the plan covers, drawn on the book: the brass stretch, its two ends,
+/// and what it adds up to.
+class _Span extends StatelessWidget {
+  const _Span({required this.draft, required this.spec});
 
   final PlanDraft draft;
-  final ValueChanged<int> onChanged;
+  final PlanSpec spec;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final caption = theme.textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      color: theme.appColors.muted,
+    );
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            l10n.planPagesPerDay,
-            style: theme.textTheme.bodyLarge?.copyWith(fontSize: 14.5),
-          ),
+        Kicker(l10n.planSpanSection, color: theme.appColors.muted),
+        const SizedBox(height: AppSpacing.x2 + 2),
+        BookComb.span(
+          from: spec.startPage,
+          to: spec.endPage,
+          of: draft.pageCount,
         ),
-        StepperField(
-          value: draft.pagesPerDay,
-          onChanged: onChanged,
-          max: draft.totalPages,
-          decreaseLabel: l10n.planPagesPerDayFewer,
-          increaseLabel: l10n.planPagesPerDayMore,
+        const SizedBox(height: AppSpacing.x2),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.planSpanRange(spec.startPage, spec.endPage),
+                style: caption,
+              ),
+            ),
+            Text(
+              '${l10n.planDayCount(inclusiveDayCount(spec.startDate, spec.targetEndDate))}'
+              ' · ${l10n.planTotalPages(spec.totalPages)}',
+              style: caption,
+            ),
+          ],
         ),
       ],
     );

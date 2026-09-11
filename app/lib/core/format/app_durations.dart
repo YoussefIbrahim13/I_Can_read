@@ -28,6 +28,19 @@ abstract final class AppDurations {
     );
   }
 
+  /// The same span at glyph width: "2m", «٢د».
+  ///
+  /// Only for a duration set as a *standing figure* — the pace cell on the
+  /// stats screen — where the label underneath names the unit and the figure
+  /// has to fit a third of the width. One unit, always: a cell that read
+  /// "1h 12m" would be a stopwatch again.
+  static String tight(Duration span, AppLocalizations l10n) {
+    final minutes = span.inMinutes;
+    if (minutes < 1) return l10n.durationSecondsTight(span.inSeconds);
+    if (minutes < 60) return l10n.durationMinutesTight(minutes);
+    return l10n.durationHoursTight(minutes ~/ 60);
+  }
+
   /// The same, but never smaller than a minute.
   ///
   /// For estimates. "about 40 seconds" invites the reader to time the app, and

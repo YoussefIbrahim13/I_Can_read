@@ -43,7 +43,14 @@ class AuthResponse {
 /// A representation of the authenticated user.
 class AuthUser {
   /// Creates an [AuthUser].
-  const AuthUser({required this.id, required this.email, this.displayName});
+  const AuthUser({
+    required this.id,
+    required this.email,
+    this.displayName,
+    this.emailVerified = false,
+    this.hasPassword = false,
+    this.googleLinked = false,
+  });
 
   /// Unique user ID.
   final String id;
@@ -54,12 +61,34 @@ class AuthUser {
   /// The user's optional display name.
   final String? displayName;
 
+  /// Whether the reader has proved they can read mail at [email].
+  ///
+  /// What it gates on the server is linking Google to this account. What it
+  /// gates here is a prompt on the account screen.
+  final bool emailVerified;
+
+  /// False for an account that only ever signs in with Google.
+  ///
+  /// Decides whether the account screen offers "set a password" or "change
+  /// your password", and which proof the delete and unlink screens ask for.
+  final bool hasPassword;
+
+  /// Whether Google is one of the ways into this account.
+  final bool googleLinked;
+
   /// Deserializes an [AuthUser] from JSON.
+  ///
+  /// The three flags default to false when absent, which is what a server
+  /// older than they are answers with. False is the safe way round: the app
+  /// offers a way to fix each of them, and offering it needlessly costs a tap.
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
       id: json['id'] as String,
       email: json['email'] as String,
       displayName: json['displayName'] as String?,
+      emailVerified: json['emailVerified'] as bool? ?? false,
+      hasPassword: json['hasPassword'] as bool? ?? false,
+      googleLinked: json['googleLinked'] as bool? ?? false,
     );
   }
 }
@@ -74,6 +103,22 @@ class AuthException implements Exception {
 
   /// HTTP status code of the failed response.
   final int statusCode;
+
+  /// The server's own name for this refusal, when it gave one.
+  ///
+  /// The account endpoints answer several different refusals with the same 409
+  /// — "confirm your address first" and "that Google account belongs to
+  /// somebody else" among them — and the reader has to be told different
+  /// things. The status cannot carry that, so the body does. Null when the
+  /// response is not a problem document, which is every older endpoint.
+  String? get code {
+    try {
+      final body = jsonDecode(message);
+      return body is Map<String, dynamic> ? body['code'] as String? : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
   @override
   String toString() => 'AuthException($statusCode): $message';

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/auth_state.dart';
 import '../../../core/auth/google_identity.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/kicker.dart';
+import '../../../core/widgets/problem_note.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../../core/widgets/segmented_control.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/account_controller.dart';
 import '../application/password_reset_controller.dart';
+import 'account_status.dart';
 
 /// Signing in and creating an account, on one screen.
 ///
@@ -54,6 +57,32 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final state = ref.watch(accountControllerProvider);
+
+    // Reached from the Settings row while already signed in: the reader wants
+    // the account they have, not a form asking them to get one.
+    if (ref.watch(authStateProvider) != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ScreenBackBar(title: l10n.settingsAccount),
+              const Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.x4,
+                    AppSpacing.gutter,
+                    AppSpacing.x6,
+                  ),
+                  child: AccountStatus(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // The way out is the reader arriving where they were going, so it is the
     // state change that closes the screen rather than the button that started
@@ -200,7 +229,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ),
                   if (state is AccountFailed) ...[
                     const SizedBox(height: AppSpacing.x3),
-                    _Problem(_message(l10n, state.error)),
+                    ProblemNote(_message(l10n, state.error)),
                   ],
                   const SizedBox(height: AppSpacing.x6),
                   // The promise is repeated here rather than assumed from the
@@ -262,6 +291,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 }
 
+
 /// A hairline with a word sitting in it, separating the two ways in.
 ///
 /// A plain gap would read as "and also", which is wrong — these are two doors
@@ -294,38 +324,3 @@ class _Or extends StatelessWidget {
   }
 }
 
-/// What went wrong, on a rule rather than in a toast.
-///
-/// A snack bar would slide away while the reader is still reading it, and the
-/// thing it is talking about — the two fields above — stays on screen.
-class _Problem extends StatelessWidget {
-  const _Problem(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        AppSpacing.x3,
-        AppSpacing.x2,
-        AppSpacing.x3,
-        AppSpacing.x2,
-      ),
-      decoration: BoxDecoration(
-        border: BorderDirectional(
-          start: BorderSide(color: theme.colorScheme.error, width: 2),
-        ),
-      ),
-      child: Text(
-        message,
-        style: theme.textTheme.bodySmall?.copyWith(
-          height: 1.6,
-          color: theme.colorScheme.error,
-        ),
-      ),
-    );
-  }
-}

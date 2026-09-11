@@ -110,7 +110,7 @@ public class PasswordResetTests(ApiFactory factory)
         await ForgotAsync(email);
         var code = factory.Mail.CodeFor(email)!;
 
-        for (var attempt = 0; attempt < PasswordResetCode.MaxAttempts; attempt++)
+        for (var attempt = 0; attempt < AccountCode.MaxAttempts; attempt++)
         {
             var wrong = (int.Parse(code) + attempt + 1) % 1_000_000;
             var guess = await ResetAsync(email, wrong.ToString("D6"));

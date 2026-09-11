@@ -25,6 +25,26 @@ public class RefreshToken
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
 
+    /// <summary>
+    /// The address this session was first opened from, for the sessions list.
+    /// </summary>
+    /// <remarks>
+    /// Recorded so a row in "your devices" says something a person can act on.
+    /// Not carried forward when the token rotates: a session that moves from a
+    /// café to a train is still the same session, and stamping it with wherever
+    /// it last refreshed would make the list about the network rather than the
+    /// device. Null for sessions issued before this column existed.
+    /// </remarks>
+    public string? CreatedFromIp { get; set; }
+
+    /// <summary>The client that opened the session, verbatim and untrusted.</summary>
+    /// <remarks>
+    /// Shown to the reader and never acted on. It is a header the caller
+    /// chooses, so it can say anything; it is here to help somebody recognise
+    /// their own phone in a list, not to establish what a request is.
+    /// </remarks>
+    public string? UserAgent { get; set; }
+
     /// <summary>Set when the token is rotated or the session is signed out.</summary>
     public DateTimeOffset? RevokedAt { get; set; }
 

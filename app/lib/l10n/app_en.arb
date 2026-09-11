@@ -16,6 +16,11 @@
   "actionRetry": "Retry",
   "actionDelete": "Delete",
 
+  "percentSign": "%",
+  "@percentSign": {
+    "description": "Set on its own under a large percentage figure, so the sign follows the script even though the digits never do."
+  },
+
   "addBook": "Add a book",
   "pickPdfFile": "Choose a PDF file",
   "importCopying": "Copying the file…",
@@ -59,7 +64,18 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "libraryLocateFile": "Locate the file",
-  "libraryNoPlanYet": "No plan yet — pick a goal",
+  "libraryNoPlanYet": "No goal for this book yet.",
+  "libraryPickGoal": "Pick a goal",
+  "libraryBookDetails": "Book details",
+  "libraryNothingDue": "Nothing due today.",
+  "libraryTodayPortion": "Today: pp. {range} · {pages}",
+  "@libraryTodayPortion": {
+    "description": "The stretch a book still owes today, shown when a shelf row is opened.",
+    "placeholders": {
+      "range": { "type": "String" },
+      "pages": { "type": "String" }
+    }
+  },
   "libraryReadOfTotal": "{read} of {total} pages",
   "@libraryReadOfTotal": {
     "placeholders": {
@@ -194,6 +210,18 @@
   "planPageFewer": "One page fewer",
   "planPagesPerDayMore": "One page a day more",
   "planPagesPerDayFewer": "One page a day fewer",
+  "planDaysMore": "One day longer",
+  "planDaysFewer": "One day shorter",
+  "planSpanSection": "The stretch",
+  "planSpanRange": "From page {from} to {to}",
+  "@planSpanRange": {
+    "placeholders": {
+      "from": { "type": "int" },
+      "to": { "type": "int" }
+    }
+  },
+  "planSliderHint": "Drag the marker — the date and the stretch work themselves out.",
+  "planMissedDayNote": "If you miss a day, your daily portion stays exactly as it is. The finish date is the only thing that moves.",
   "planPreview": "You'll read {pages} pages a day and finish on {date}.",
   "@planPreview": {
     "description": "The wizard's hero sentence. Both values are set apart typographically, so they are substituted as text rather than formatted numbers.",
@@ -274,6 +302,7 @@
   "@statsPacePerPage": {
     "placeholders": { "duration": { "type": "String" } }
   },
+  "statsPerPage": "a page",
   "statsPagesPerDay": "Pages a day",
   "statsToday": "Today",
   "statsCalendar": "The days you read",
@@ -374,6 +403,22 @@
 
   "readerFinishSession": "I finished my portion",
   "readerKeepReading": "Keep reading",
+  "@readerKeepReading": {
+    "description": "Opens the book with nothing due — today's portion is done, or the plan is paused. The reading is not counted against any portion; the reader simply wanted to carry on."
+  },
+  "readerOpenBook": "Open the book",
+  "@readerOpenBook": {
+    "description": "Opens a book that has no plan. Reading it records nothing, which is the point: not every book is a goal."
+  },
+  "readerTapToTurn": "Tap the page to turn it",
+  "readerPortionProgress": "{done} of {total}",
+  "@readerPortionProgress": {
+    "description": "How far through today's portion this sitting has got, beside the rule that draws the same thing.",
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "readerCopyPage": "Copy this page",
   "readerPageCopied": "Page {page} copied",
   "@readerPageCopied": {
@@ -425,6 +470,19 @@
       "minutes": { "type": "String" }
     }
   },
+  "durationSecondsTight": "{count}s",
+  "@durationSecondsTight": {
+    "description": "Glyph-width form, for a duration set as a standing figure in a stats cell where the label underneath names the unit. No plural — there is no room for one and no sentence for it to agree with.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationMinutesTight": "{count}m",
+  "@durationMinutesTight": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "durationHoursTight": "{count}h",
+  "@durationHoursTight": {
+    "placeholders": { "count": { "type": "int" } }
+  },
 
   "notificationTitle": "Time to read",
   "notificationBody": "{pages} pages from {book}",
@@ -457,8 +515,21 @@
 
   "settingsAccount": "Account",
   "settingsPrivacyPolicy": "Privacy policy",
+  "settingsPrivacyPolicyHint": "Your files are never uploaded.",
+  "settingsWarmth": "Paper warmth",
+  "settingsWarmthHint": "Warms the paper and settles its whiteness for long reading at night.",
+  "settingsWarmthCool": "Cool",
+  "settingsWarmthLight": "Light",
+  "settingsWarmthMedium": "Medium",
+  "settingsWarmthWarm": "Warm",
+  "settingsWarmthWarmest": "Warmest",
+  "settingsFooterLine": "{version} · your files stay on this phone",
+  "@settingsFooterLine": {
+    "placeholders": { "version": { "type": "String" } }
+  },
   "settingsBackup": "Backup",
   "settingsBackupHint": "Save your books, plans and reading history to a file you keep. The PDFs are not in it — they stay on this phone.",
+  "settingsBackupSubtitle": "Save your books and plans to a file you keep.",
   "backupExport": "Save a backup",
   "backupImport": "Restore from a backup",
   "backupExported": "{count, plural, =1{Saved, with 1 item in it} other{Saved, with {count} items in it}}",
@@ -512,6 +583,76 @@
   },
 
   "accountForgotPassword": "Forgot your password?",
+
+  "manageTitle": "Your account",
+  "manageName": "Your name",
+  "manageNameHint": "What the app calls you. Leave it empty and it won't.",
+  "manageSaveName": "Save",
+  "manageNameSaved": "Saved",
+  "manageSecurity": "Signing in",
+  "manageChangePassword": "Change your password",
+  "manageSetPassword": "Set a password",
+  "manageSetPasswordHint": "A second way in, for the day you don't have your Google account to hand.",
+  "manageConnectGoogle": "Connect Google",
+  "manageDisconnectGoogle": "Disconnect Google",
+  "manageGoogleConnected": "Google is connected to this account.",
+  "manageDevices": "Your devices",
+  "manageDevicesHint": "See where you're signed in, and sign a device out.",
+  "manageErrorOffline": "Couldn't reach the server. Check your connection and try again.",
+  "manageErrorTooMany": "Too many attempts. Wait a minute, then try again.",
+  "manageErrorNotConfirmed": "That password isn't right.",
+  "manageErrorGoogle": "Google sign-in didn't work. Try again.",
+  "manageErrorEmailNotVerified": "Confirm your email address first.",
+  "manageErrorGoogleEmailMismatch": "That Google account uses a different email address. Pick the one that matches this account.",
+  "manageErrorGoogleAlreadyInUse": "That Google account is already connected to another account here.",
+  "manageErrorWouldLockOut": "Set a password first — otherwise you'd have no way back in.",
+  "manageUnlinkTitle": "Disconnect Google",
+  "manageUnlinkBody": "You'll sign in with your email and password from now on. Type your password to confirm.",
+  "manageUnlinkConfirm": "Disconnect",
+  "commonCancel": "Cancel",
+
+  "verifyEmailPrompt": "Confirm your email address",
+  "verifyEmailPromptBody": "It's how we know the address is really yours — and it's what lets you connect Google to this account.",
+  "verifyEmailAction": "Confirm now",
+  "verifyEmailTitle": "Confirm your email",
+  "verifyEmailIntro": "We emailed a six-digit code to {email}. It expires in fifteen minutes.",
+  "@verifyEmailIntro": {
+    "placeholders": { "email": { "type": "String" } }
+  },
+  "verifyEmailCode": "The six-digit code",
+  "verifyEmailSubmit": "Confirm my address",
+  "verifyEmailResend": "Send another code",
+  "verifyEmailResent": "A new code is on its way. The old one has stopped working.",
+  "verifyEmailDone": "Your address is confirmed",
+  "verifyEmailDoneBody": "You can connect Google to this account now, and a password reset will reach you.",
+  "verifyEmailErrorCode": "That code is not valid. Ask for a new one and try again.",
+
+  "changePasswordTitle": "Change your password",
+  "setPasswordTitle": "Set a password",
+  "changePasswordIntro": "Every other device will be signed out. This one stays signed in.",
+  "setPasswordIntro": "You'll be able to sign in with your email and password as well as with Google. Every other device will be signed out.",
+  "changePasswordCurrent": "Your current password",
+  "changePasswordNew": "New password",
+  "changePasswordSubmit": "Save my new password",
+  "setPasswordSubmit": "Set my password",
+  "changePasswordGoogleHint": "Google will ask you to confirm it's you before the password is set.",
+  "changePasswordDone": "Your password is set",
+  "changePasswordDoneBody": "Every other device has been signed out. This one is still signed in.",
+  "changePasswordErrorUnchanged": "That's the password you already have.",
+
+  "sessionsTitle": "Your devices",
+  "sessionsIntro": "Every device that's signed in to your account. Sign one out and it will have to sign in again.",
+  "sessionsCurrent": "This device",
+  "sessionsSignedInOn": "Signed in {date}",
+  "@sessionsSignedInOn": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "sessionsSignOutOne": "Sign out",
+  "sessionsSignOutOthers": "Sign out every other device",
+  "sessionsOnlyThisOne": "This is the only device signed in.",
+  "sessionsFailed": "Couldn't load your devices. Check your connection and try again.",
+  "sessionsRetry": "Try again",
+
   "resetTitle": "Reset your password",
   "resetIntro": "Tell us the address on your account and we'll email you a six-digit code.",
   "resetSendCode": "Email me a code",

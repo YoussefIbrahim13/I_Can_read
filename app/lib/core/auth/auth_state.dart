@@ -17,6 +17,9 @@ class AuthSession {
     required this.refreshToken,
     required this.accessTokenExpiresAt,
     this.displayName,
+    this.emailVerified = false,
+    this.hasPassword = false,
+    this.googleLinked = false,
   });
 
   final String userId;
@@ -25,6 +28,15 @@ class AuthSession {
   final String refreshToken;
   final DateTime accessTokenExpiresAt;
   final String? displayName;
+
+  /// Whether the address on the account has been proved. See [AuthUser].
+  final bool emailVerified;
+
+  /// False for an account that only ever signs in with Google.
+  final bool hasPassword;
+
+  /// Whether Google is one of the ways into this account.
+  final bool googleLinked;
 
   /// Whether the access token needs refreshing before the next request.
   ///
@@ -46,6 +58,29 @@ class AuthSession {
       refreshToken: refreshToken ?? this.refreshToken,
       accessTokenExpiresAt: accessTokenExpiresAt ?? this.accessTokenExpiresAt,
       displayName: displayName,
+      emailVerified: emailVerified,
+      hasPassword: hasPassword,
+      googleLinked: googleLinked,
+    );
+  }
+
+  /// The same session, describing the account as the server just described it.
+  ///
+  /// Deliberately not [copyWith]: everything about the account can change here
+  /// — the name, whether there is a password, whether Google is attached —
+  /// while the tokens are untouched, and listing those fields as optional
+  /// overrides would make "clear my name" indistinguishable from "leave it".
+  AuthSession withUser(AuthUser user) {
+    return AuthSession(
+      userId: userId,
+      email: user.email,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      accessTokenExpiresAt: accessTokenExpiresAt,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified,
+      hasPassword: user.hasPassword,
+      googleLinked: user.googleLinked,
     );
   }
 }
@@ -57,6 +92,9 @@ const _keyDisplayName = 'auth.displayName';
 const _keyAccessToken = 'auth.accessToken';
 const _keyRefreshToken = 'auth.refreshToken';
 const _keyExpiresAt = 'auth.accessTokenExpiresAt';
+const _keyEmailVerified = 'auth.emailVerified';
+const _keyHasPassword = 'auth.hasPassword';
+const _keyGoogleLinked = 'auth.googleLinked';
 
 class AuthStateNotifier extends Notifier<AuthSession?> {
   FlutterSecureStorage get _storage => ref.read(secureStorageProvider);
@@ -93,8 +131,14 @@ class AuthStateNotifier extends Notifier<AuthSession?> {
       refreshToken: refreshToken,
       accessTokenExpiresAt: DateTime.parse(expiresAtRaw),
       displayName: await _storage.read(key: _keyDisplayName),
+      emailVerified: await _readFlag(_keyEmailVerified),
+      hasPassword: await _readFlag(_keyHasPassword),
+      googleLinked: await _readFlag(_keyGoogleLinked),
     );
   }
+
+  Future<bool> _readFlag(String key) async =>
+      await _storage.read(key: key) == 'true';
 
   /// Records a successful sign-in.
   Future<void> signIn(AuthResponse response) async {
@@ -105,21 +149,42 @@ class AuthStateNotifier extends Notifier<AuthSession?> {
       refreshToken: response.refreshToken,
       accessTokenExpiresAt: response.accessTokenExpiresAt,
       displayName: response.user.displayName,
+      emailVerified: response.user.emailVerified,
+      hasPassword: response.user.hasPassword,
+      googleLinked: response.user.googleLinked,
     );
     state = session;
     await _persist(session);
   }
 
   /// Updates the tokens after a successful refresh.
+  ///
+  /// Carries the account's details across too, because a refresh answers with
+  /// them and they may have moved on: a reader who confirmed their address on
+  /// another device should find this one agreeing at its next refresh rather
+  /// than still showing the prompt.
   Future<void> updateTokens(AuthResponse response) async {
     final current = state;
     if (current == null) return;
 
-    final updated = current.copyWith(
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      accessTokenExpiresAt: response.accessTokenExpiresAt,
-    );
+    final updated = current
+        .copyWith(
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          accessTokenExpiresAt: response.accessTokenExpiresAt,
+        )
+        .withUser(response.user);
+
+    state = updated;
+    await _persist(updated);
+  }
+
+  /// Records what the server last said about the account, tokens untouched.
+  Future<void> updateUser(AuthUser user) async {
+    final current = state;
+    if (current == null) return;
+
+    final updated = current.withUser(user);
     state = updated;
     await _persist(updated);
   }
@@ -136,6 +201,9 @@ class AuthStateNotifier extends Notifier<AuthSession?> {
       _storage.delete(key: _keyAccessToken),
       _storage.delete(key: _keyRefreshToken),
       _storage.delete(key: _keyExpiresAt),
+      _storage.delete(key: _keyEmailVerified),
+      _storage.delete(key: _keyHasPassword),
+      _storage.delete(key: _keyGoogleLinked),
     ]);
 
     // Best-effort server logout — do not block the UI on it.
@@ -150,13 +218,27 @@ class AuthStateNotifier extends Notifier<AuthSession?> {
     await Future.wait([
       _storage.write(key: _keyUserId, value: session.userId),
       _storage.write(key: _keyEmail, value: session.email),
+      // Deleted rather than skipped when there is no name. Skipping would leave
+      // the previous one in storage, and a reader who cleared their name would
+      // find it back on the next launch.
       if (session.displayName != null)
-        _storage.write(key: _keyDisplayName, value: session.displayName),
+        _storage.write(key: _keyDisplayName, value: session.displayName)
+      else
+        _storage.delete(key: _keyDisplayName),
       _storage.write(key: _keyAccessToken, value: session.accessToken),
       _storage.write(key: _keyRefreshToken, value: session.refreshToken),
       _storage.write(
         key: _keyExpiresAt,
         value: session.accessTokenExpiresAt.toIso8601String(),
+      ),
+      _storage.write(
+        key: _keyEmailVerified,
+        value: session.emailVerified.toString(),
+      ),
+      _storage.write(key: _keyHasPassword, value: session.hasPassword.toString()),
+      _storage.write(
+        key: _keyGoogleLinked,
+        value: session.googleLinked.toString(),
       ),
     ]);
   }

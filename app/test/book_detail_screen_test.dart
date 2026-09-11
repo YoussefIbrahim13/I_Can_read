@@ -158,11 +158,15 @@ void main() {
     await addBook(lastPageRead: 40);
     await pumpDetail(tester);
 
+    // v2's masthead is the title and the author and nothing else.
     expect(find.text('The Muqaddimah'), findsOneWidget);
     expect(find.text('Ibn Khaldun'), findsOneWidget);
+    // The figure stands bare, with its sign carried by the caption beside it.
+    expect(find.text('40'), findsOneWidget);
+    expect(find.text('of the book'), findsOneWidget);
+    expect(find.text('40 of 100 pages'), findsOneWidget);
+    // The book's two unchanging facts moved down among the plan's dates.
     expect(find.text('240 pages · Started 1 January'), findsOneWidget);
-    expect(find.text('40%'), findsOneWidget);
-    expect(find.text('of the book\n40 of 100 pages'), findsOneWidget);
 
     await closeApp(tester);
   });
@@ -340,7 +344,7 @@ void main() {
     await addBook(lastPageRead: 100, status: BookStatus.finished);
     await pumpDetail(tester);
 
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('100'), findsOneWidget);
     expect(find.text('Pause'), findsNothing);
     expect(find.text('I finished it'), findsNothing);
     // One way out, and it is the reversible one.
@@ -365,19 +369,59 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('fits three actions across on the narrowest phone', (
+  testWidgets('a book with no plan can still be opened and read', (
+    tester,
+  ) async {
+    // A goal is what the screen asks for, but it is not a toll gate: a reader
+    // who just wants to open the book is not doing anything wrong.
+    await addBook(withPlan: false);
+    await pumpDetail(tester);
+
+    expect(find.text('Open the book'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('a book being read offers the way back into it', (tester) async {
+    await addBook(lastPageRead: 40);
+    await pumpDetail(tester);
+
+    // Above the two things you do to the book itself, and not primary: the
+    // screen still does not end in something to press.
+    expect(find.text('Keep reading'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('a finished book can be opened without being un-finished', (
+    tester,
+  ) async {
+    await addBook(status: BookStatus.finished, lastPageRead: 100);
+    await pumpDetail(tester);
+
+    expect(find.text('Open the book'), findsOneWidget);
+    expect(find.text('Reading again'), findsOneWidget);
+
+    await closeApp(tester);
+  });
+
+  testWidgets('fits its actions across on the narrowest phone', (
     tester,
   ) async {
     // 320dp is the narrowest width the app claims to support, and the action
-    // row is the only place three controls share one line.
+    // row is the only place two controls share one line. Tall, because the
+    // width is the subject: v2's full-bleed reading calendar made the screen
+    // longer, and the row would otherwise sit below the fold unbuilt.
     await addBook(lastPageRead: 40);
-    await pumpDetail(tester, viewport: const Size(320, 800));
+    await pumpDetail(tester, viewport: const Size(320, 1600));
 
     // An overflow would already have failed the pump; this pins the row down
     // as the thing being checked.
-    expect(find.text('Edit the plan'), findsOneWidget);
     expect(find.text('Pause'), findsOneWidget);
     expect(find.text('I finished it'), findsOneWidget);
+    // Editing the plan is no longer down here — v2 moved it up beside the
+    // plan sentence it edits, which is what left this row with two.
+    expect(find.text('Edit the plan'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await closeApp(tester);

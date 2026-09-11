@@ -6,13 +6,11 @@ import '../../../core/db/app_database.dart';
 import '../../../core/format/app_dates.dart';
 import '../../../core/format/app_durations.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/cover_plate.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/figure.dart';
 import '../../../core/widgets/kicker.dart';
 import '../../../core/widgets/progress_shapes.dart';
 import '../../../core/widgets/reading_calendar_grid.dart';
-import '../../../core/widgets/screen_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../plan/application/plan_providers.dart';
 import '../application/book_detail_providers.dart';
@@ -23,6 +21,11 @@ import '../domain/book_progress.dart';
 /// The order is the order the reader asks the questions in: how far am I, what
 /// did I sign up for, when will I actually finish, which days did I read. The
 /// actions come last, because none of them is why the screen was opened.
+///
+/// Redesign v2 took the boxes off. The cover plate, the bordered plan card and
+/// the ruled progress bar are gone; what is left is a title, the book drawn at
+/// page resolution as a [BookComb], and three sections separated by hairlines.
+/// A screen about one book should look like a page from it, not like a form.
 class BookDetailScreen extends ConsumerWidget {
   const BookDetailScreen({required this.bookId, super.key});
 
@@ -37,112 +40,131 @@ class BookDetailScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // No title: the book's own title sets two lines below, and naming
-            // it twice would make the arrow read as chrome from another screen.
-            const ScreenBackBar(),
-            Expanded(
-              child: book == null
-                  ? const SizedBox.shrink()
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.gutter,
-                        0,
-                        AppSpacing.gutter,
-                        AppSpacing.x8,
-                      ),
-                      children: [
-                        _Masthead(book: book, plan: plan),
-                        const SizedBox(height: AppSpacing.x4 + 2),
-                        if (plan == null || progress == null)
-                          _NoPlan(bookId: bookId)
-                        else ...[
-                          _Progress(progress: progress),
-                          const SizedBox(height: AppSpacing.x6 - 6),
-                          _PlanCard(progress: progress),
-                          const SizedBox(height: AppSpacing.x4 + 2),
-                          _ReadingDays(plan: plan),
-                          const SizedBox(height: AppSpacing.x4 + 2),
-                        ],
-                        _Actions(book: book, plan: plan),
-                        const SizedBox(height: AppSpacing.x4),
-                        _DeleteBook(bookId: bookId),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+        child: book == null
+            ? const SizedBox.shrink()
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.gutter,
+                  AppSpacing.x3,
+                  AppSpacing.gutter,
+                  AppSpacing.x8,
+                ),
+                children: [
+                  const _Breadcrumb(),
+                  const SizedBox(height: AppSpacing.x4),
+                  _Masthead(book: book),
+                  const SizedBox(height: AppSpacing.x4),
+                  if (plan == null || progress == null)
+                    _NoPlan(bookId: bookId)
+                  else ...[
+                    _Progress(progress: progress),
+                    const SizedBox(height: AppSpacing.x6 - 6),
+                    const Divider(),
+                    const SizedBox(height: AppSpacing.x4),
+                    _PlanSection(book: book, plan: plan, progress: progress),
+                    const SizedBox(height: AppSpacing.x4),
+                    const Divider(),
+                    const SizedBox(height: AppSpacing.x4),
+                    _ReadingDays(plan: plan),
+                    const SizedBox(height: AppSpacing.x6 - 4),
+                  ],
+                  _Actions(book: book, plan: plan),
+                  const SizedBox(height: AppSpacing.x4),
+                  _DeleteBook(bookId: bookId),
+                ],
+              ),
       ),
     );
   }
 }
 
-/// Cover, title, author, and the two facts that never change: how long the
-/// book is, and when the reader started it.
-class _Masthead extends StatelessWidget {
-  const _Masthead({required this.book, required this.plan});
-
-  final Book book;
-  final ReadingPlan? plan;
+/// The way back, set as a breadcrumb rather than an arrow in a bar.
+///
+/// v2 dropped the back bar here: it was 56 points of chrome above a screen
+/// whose own title starts the page, and the arrow said nothing about where it
+/// went. This says it. It still leaves by [Navigator.maybePop], so it is right
+/// however the screen was reached.
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context);
 
-    final started = plan == null
-        ? null
-        : l10n.bookStartedOn(AppDates.dayAndMonth(plan!.startDate, locale));
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const CoverPlate(width: 58, height: 80),
-        const SizedBox(width: AppSpacing.x3),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: InkWell(
+        onTap: () => Navigator.of(context).maybePop(),
+        borderRadius: BorderRadius.circular(AppSpacing.radius),
+        child: Padding(
+          // Keeps the 44pt target the arrow used to have, without drawing a
+          // control around six small words.
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // `chevron_left` carries `matchTextDirection`, so it points the
+              // right way under RTL without a manual flip.
+              Icon(Icons.chevron_left, size: 15, color: theme.appColors.muted),
+              const SizedBox(width: 2),
               Text(
-                book.title,
-                style: theme.textTheme.titleLarge,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (book.author case final author?)
-                Text(
-                  author,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12.5,
-                    color: theme.appColors.muted,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              const SizedBox(height: AppSpacing.x1),
-              Text(
-                [l10n.bookPageCount(book.pageCount), ?started].join(' · '),
+                l10n.navLibrary,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   color: theme.appColors.muted,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Title and author, set as the page's own masthead.
+class _Masthead extends StatelessWidget {
+  const _Masthead({required this.book});
+
+  final Book book;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          book.title,
+          style: theme.textTheme.headlineMedium,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (book.author case final author?) ...[
+          const SizedBox(height: 2),
+          Text(
+            author,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 13,
+              color: theme.appColors.muted,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }
 }
 
-/// The percentage at display size, over the book-scope rule.
+/// The whole book as a run of pages, and the percentage standing under it.
 ///
-/// The figure is the largest thing on the screen because it answers the
-/// question the reader opened it with. The pages beside it state the same fact
-/// exactly, for the reader who wants the number rather than the impression.
+/// The comb is the point: 46% is a number the reader has to convert into a
+/// feeling, and the comb *is* the feeling — this much inked, that much to go,
+/// and a brass rule at the place they stopped. The figure is kept because some
+/// readers want the number, and the page count because some want the fact.
 class _Progress extends StatelessWidget {
   const _Progress({required this.progress});
 
@@ -152,16 +174,22 @@ class _Progress extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final caption = theme.textTheme.bodySmall?.copyWith(
+      fontSize: 12.5,
+      color: theme.appColors.muted,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        BookComb.progress(fraction: progress.fraction),
+        const SizedBox(height: AppSpacing.x3),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Figure(
-              AppNumbers.percent(progress.fraction),
-              size: 60,
+            Figure.number(
+              (progress.fraction * 100).round(),
+              size: 44,
               height: 0.82,
               // Green is completion and nothing else, so it appears here only
               // once the whole plan is read — never as "you are doing well".
@@ -169,27 +197,41 @@ class _Progress extends StatelessWidget {
                   ? theme.appColors.done
                   : theme.colorScheme.onSurface,
             ),
-            const SizedBox(width: AppSpacing.x3),
-            Expanded(
+            const SizedBox(width: AppSpacing.x2),
+            // Both captions flex. Neither is load-bearing enough to push the
+            // other off the screen, and between a long translation and a large
+            // text scale there are two ways for them not to fit.
+            Flexible(
               child: Padding(
                 // Sits the caption on the percentage's baseline rather than on
                 // its descender.
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 5),
                 child: Text(
-                  '${l10n.bookOfTheBook}\n'
-                  '${l10n.libraryReadOfTotal(progress.pagesRead, progress.totalPages)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12.5,
-                    height: 1.6,
-                    color: theme.appColors.muted,
+                  l10n.bookOfTheBook,
+                  style: caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.x2),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text(
+                  l10n.libraryReadOfTotal(
+                    progress.pagesRead,
+                    progress.totalPages,
                   ),
+                  style: caption,
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.x2),
-        BookRule(fraction: progress.fraction, height: 2),
       ],
     );
   }
@@ -200,9 +242,22 @@ class _Progress extends StatelessWidget {
 /// This is the only place in the app that mentions lateness, and it says it as
 /// a date: the daily portion is fixed, so missing days moves the finish and
 /// nothing else. No red, no percentage, no broken streak.
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.progress});
+///
+/// v2 unboxed it. The border made the plan look like a thing you had to fill
+/// in; between two hairlines it reads as a paragraph about the book, which is
+/// what it is.
+class _PlanSection extends StatelessWidget {
+  const _PlanSection({
+    required this.book,
+    required this.plan,
+    required this.progress,
+  });
 
+  final Book book;
+
+  /// Carried alongside [progress] for one thing only: the day the plan began,
+  /// which is a fact about the plan rather than about how it is going.
+  final ReadingPlan plan;
   final BookProgress progress;
 
   @override
@@ -218,61 +273,76 @@ class _PlanCard extends StatelessWidget {
       color: colors.muted,
     );
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.x3),
-      decoration: BoxDecoration(
-        // A hairline, not a shadow: nothing in this app floats.
-        border: Border.all(color: colors.hairline),
-        borderRadius: BorderRadius.circular(AppSpacing.radius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Kicker(l10n.bookPlanSection),
-          const SizedBox(height: AppSpacing.x2 + 2),
-          Text(
-            '${l10n.libraryDailyPortion(progress.pagesPerDay)} · '
-            '${l10n.bookSessionCount(progress.sessionCount)}',
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.75),
-          ),
-          const SizedBox(height: AppSpacing.x3 - 2),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.x3 - 2),
-          Text(
-            l10n.progressProjectedEnd(
-              AppDates.dayAndMonth(progress.projectedEndDate, locale),
-            ),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: 13.5,
-              height: 1.85,
-            ),
-          ),
-          // Stated only when it is true. A book that is on time says nothing
-          // about time, which is the whole point of the rule.
-          if (progress.isLate)
-            Text(
-              l10n.bookTargetWas(
-                AppDates.dayAndMonth(progress.targetEndDate, locale),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Kicker(l10n.bookPlanSection, color: colors.muted),
+        const SizedBox(height: AppSpacing.x2 + 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                '${l10n.libraryDailyPortion(progress.pagesPerDay)} · '
+                '${l10n.bookSessionCount(progress.sessionCount)}',
+                style: theme.textTheme.titleMedium?.copyWith(fontSize: 16.5),
               ),
-              style: aside,
             ),
-          if (progress.pausedAt case final pausedAt?)
-            Text(
-              l10n.bookPausedSince(AppDates.dayAndMonth(pausedAt, locale)),
-              style: aside,
-            ),
-          // Said only once something has actually been timed. A book read
-          // before the clock existed would otherwise be told it took no time
-          // at all, which is a measurement nobody made.
-          if (progress.hasTimeReading)
-            Text(
-              l10n.bookTimeReading(
-                AppDurations.compact(progress.timeReading, l10n),
+            const SizedBox(width: AppSpacing.x2),
+            // Beside the plan rather than down with the actions: this edits
+            // the sentence it sits next to, and nothing else on the screen.
+            TextButton(
+              onPressed: () => context.push('/books/${book.id}/plan'),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.primary,
+                minimumSize: const Size(0, 30),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              style: aside,
+              child: Text(l10n.planEdit),
             ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        // The two facts that never change about a book, kept here rather than
+        // in the masthead: v2's masthead is the title and the author and
+        // nothing else, and these are dates — which is what this section is.
+        Text(
+          '${l10n.bookPageCount(book.pageCount)} · '
+          '${l10n.bookStartedOn(AppDates.dayAndMonth(plan.startDate, locale))}',
+          style: aside,
+        ),
+        Text(
+          l10n.progressProjectedEnd(
+            AppDates.dayAndMonth(progress.projectedEndDate, locale),
+          ),
+          style: aside,
+        ),
+        // Stated only when it is true. A book that is on time says nothing
+        // about time, which is the whole point of the rule.
+        if (progress.isLate)
+          Text(
+            l10n.bookTargetWas(
+              AppDates.dayAndMonth(progress.targetEndDate, locale),
+            ),
+            style: aside,
+          ),
+        if (progress.pausedAt case final pausedAt?)
+          Text(
+            l10n.bookPausedSince(AppDates.dayAndMonth(pausedAt, locale)),
+            style: aside,
+          ),
+        // Said only once something has actually been timed. A book read
+        // before the clock existed would otherwise be told it took no time
+        // at all, which is a measurement nobody made.
+        if (progress.hasTimeReading)
+          Text(
+            l10n.bookTimeReading(
+              AppDurations.compact(progress.timeReading, l10n),
+            ),
+            style: aside,
+          ),
+      ],
     );
   }
 }
@@ -324,9 +394,25 @@ class _NoPlan extends StatelessWidget {
       child: EmptyState(
         title: l10n.bookNoPlanTitle,
         message: l10n.bookNoPlanHint,
-        action: OutlinedButton(
-          onPressed: () => context.push('/books/$bookId/plan'),
-          child: Text(l10n.planCreate),
+        // Two answers, in the order the screen believes in them: a goal is
+        // what turns a file into something finishable, and is asked for first.
+        // But a reader who just wants to open the book is not doing anything
+        // wrong, and making the plan the toll gate would only teach them that
+        // this app is where books go to become homework.
+        action: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            OutlinedButton(
+              onPressed: () => context.push('/books/$bookId/plan'),
+              child: Text(l10n.planCreate),
+            ),
+            const SizedBox(height: AppSpacing.x1),
+            TextButton(
+              onPressed: () => context.push('/books/$bookId/read'),
+              child: Text(l10n.readerOpenBook),
+            ),
+          ],
         ),
       ),
     );
@@ -352,36 +438,61 @@ class _Actions extends ConsumerWidget {
     Future<void> setStatus(BookStatus status) =>
         actions.setStatus(book.id, status);
 
+    // The way into the book, on whatever shelf it is sitting. A finished book
+    // is opened to be looked at again, a reading one to be carried on with —
+    // and neither of those has to be due, or planned, or asked permission for.
+    Widget openBook(String label) => _ActionRow(
+      children: [
+        _Action(
+          label: label,
+          onPressed: () => context.push('/books/${book.id}/read'),
+        ),
+      ],
+    );
+
     return switch (book.status) {
-      BookStatus.finished => _ActionRow(
+      BookStatus.finished => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Action(
-            primary: true,
-            label: l10n.bookReturnToReading,
-            onPressed: () => setStatus(BookStatus.reading),
+          openBook(l10n.readerOpenBook),
+          const SizedBox(height: AppSpacing.x2 - 1),
+          _ActionRow(
+            children: [
+              _Action(
+                primary: true,
+                label: l10n.bookReturnToReading,
+                onPressed: () => setStatus(BookStatus.reading),
+              ),
+            ],
           ),
         ],
       ),
-      BookStatus.reading when plan != null => _ActionRow(
+      // Editing the plan is not here: v2 moved it up beside the plan sentence
+      // it edits, which leaves this row as the two things you do to the *book*
+      // rather than to its goal. Neither is primary — a screen whose reason for
+      // existing is to be read should not end in something to press.
+      BookStatus.reading when plan != null => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Action(
-            primary: true,
-            label: l10n.planEdit,
-            onPressed: () => context.push('/books/${book.id}/plan'),
-          ),
-          if (plan!.pausedAt == null)
-            _Action(
-              label: l10n.bookPause,
-              onPressed: () => actions.pause(plan!.id),
-            )
-          else
-            _Action(
-              label: l10n.bookResume,
-              onPressed: () => actions.resume(plan!.id),
-            ),
-          _Action(
-            label: l10n.bookMarkFinished,
-            onPressed: () => setStatus(BookStatus.finished),
+          openBook(l10n.readerKeepReading),
+          const SizedBox(height: AppSpacing.x2 - 1),
+          _ActionRow(
+            children: [
+              if (plan!.pausedAt == null)
+                _Action(
+                  label: l10n.bookPause,
+                  onPressed: () => actions.pause(plan!.id),
+                )
+              else
+                _Action(
+                  label: l10n.bookResume,
+                  onPressed: () => actions.resume(plan!.id),
+                ),
+              _Action(
+                label: l10n.bookMarkFinished,
+                onPressed: () => setStatus(BookStatus.finished),
+              ),
+            ],
           ),
         ],
       ),

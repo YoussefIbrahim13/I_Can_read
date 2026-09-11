@@ -8,7 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
+    public DbSet<AccountCode> AccountCodes => Set<AccountCode>();
     public DbSet<Book> Books => Set<Book>();
     public DbSet<BookFingerprint> BookFingerprints => Set<BookFingerprint>();
     public DbSet<ReadingPlan> ReadingPlans => Set<ReadingPlan>();
@@ -64,6 +64,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .IsUnique()
                 .HasFilter("\"GoogleSubject\" IS NOT NULL");
             e.Property(u => u.DisplayName).HasMaxLength(200);
+            // Computed from EmailVerifiedAt rather than stored alongside it —
+            // two columns that can disagree about the same fact is a bug
+            // waiting for the one write path that forgets the second.
+            e.Ignore(u => u.IsEmailVerified);
         });
 
         b.Entity<RefreshToken>(e =>
@@ -72,23 +76,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(t => t.Id);
             e.Property(t => t.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
             e.HasIndex(t => t.TokenHash).IsUnique();
+            // 45 is an IPv4-mapped IPv6 address written out in full, which is
+            // the longest thing RemoteIpAddress can produce.
+            e.Property(t => t.CreatedFromIp).HasMaxLength(45);
+            e.Property(t => t.UserAgent).HasMaxLength(256);
             e.HasOne(t => t.User)
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // The sessions list: this account's live tokens, newest first.
+            e.HasIndex(t => new { t.UserId, t.CreatedAt });
         });
 
-        b.Entity<PasswordResetCode>(e =>
+        b.Entity<AccountCode>(e =>
         {
-            e.ToTable("password_reset_codes");
+            e.ToTable("account_codes");
             e.HasKey(c => c.Id);
             e.Property(c => c.CodeHash).HasMaxLength(64).IsRequired().IsFixedLength();
+            // As a string, for the same reason Book.Status is: adding a purpose
+            // in the middle of the enum must not silently reinterpret the rows
+            // already in the table.
+            e.Property(c => c.Purpose).HasConversion<string>().HasMaxLength(32);
             e.HasOne(c => c.User)
                 .WithMany()
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            // The only query there is: the newest code for one account.
-            e.HasIndex(c => new { c.UserId, c.CreatedAt });
+            // The only query there is: the newest code of one purpose for one
+            // account.
+            e.HasIndex(c => new { c.UserId, c.Purpose, c.CreatedAt });
         });
 
         b.Entity<Book>(e =>
