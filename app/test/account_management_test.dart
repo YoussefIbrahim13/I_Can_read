@@ -18,7 +18,9 @@ import 'package:i_can_read/features/account/application/change_password_controll
 import 'package:i_can_read/features/account/application/email_verification_controller.dart';
 import 'package:i_can_read/features/account/application/sessions_controller.dart';
 import 'package:i_can_read/features/account/presentation/account_screen.dart';
+import 'package:i_can_read/features/account/presentation/change_password_screen.dart';
 import 'package:i_can_read/features/account/presentation/devices_screen.dart';
+import 'package:i_can_read/features/account/presentation/verify_email_screen.dart';
 import 'package:i_can_read/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -646,6 +648,80 @@ void main() {
       // A button that leads nowhere every time is worse than no button.
       expect(find.text(l10n.manageConnectGoogle), findsNothing);
       expect(find.text(l10n.manageDisconnectGoogle), findsNothing);
+    });
+
+    testWidgets('the password screen asks for the old one when there is one',
+        (tester) async {
+      await signIn();
+      final l10n = await open(tester, const ChangePasswordScreen());
+
+      expect(find.text(l10n.changePasswordTitle), findsOneWidget);
+      expect(find.text(l10n.changePasswordIntro), findsOneWidget);
+      // Two fields: the current password and the new one.
+      expect(find.byType(TextField), findsNWidgets(2));
+      expect(find.text(l10n.changePasswordCurrent), findsOneWidget);
+    });
+
+    testWidgets('the password screen asks Google instead when there is none',
+        (tester) async {
+      await signIn(hasPassword: false, googleLinked: true);
+      final l10n = await open(tester, const ChangePasswordScreen());
+
+      expect(find.text(l10n.setPasswordTitle), findsOneWidget);
+      // Nothing to type for a password that does not exist yet — the proof is
+      // the picker, and the screen says so before the button is pressed.
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text(l10n.changePasswordCurrent), findsNothing);
+      expect(find.text(l10n.changePasswordGoogleHint), findsOneWidget);
+    });
+
+    testWidgets('a refused password change explains itself in place', (
+      tester,
+    ) async {
+      await signIn();
+      api.failure = const AuthException('unauthorized', 401);
+      final l10n = await open(tester, const ChangePasswordScreen());
+
+      await tester.enterText(find.byType(TextField).first, 'not the password');
+      await tester.enterText(find.byType(TextField).last, 'a brand new password');
+      await tester.tap(find.text(l10n.changePasswordSubmit).last);
+      await tester.pumpAndSettle();
+
+      // Next to the fields it is about, not in a toast that slides away while
+      // the reader is still reading it.
+      expect(find.text(l10n.manageErrorNotConfirmed), findsOneWidget);
+    });
+
+    testWidgets('the confirm screen names the address the code went to', (
+      tester,
+    ) async {
+      await signIn();
+      final l10n = await open(tester, const VerifyEmailScreen());
+
+      expect(
+        find.text(l10n.verifyEmailIntro('reader@example.com')),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.verifyEmailResend), findsOneWidget);
+    });
+
+    testWidgets('a wrong code is refused on the screen, a right one confirms', (
+      tester,
+    ) async {
+      await signIn();
+      final l10n = await open(tester, const VerifyEmailScreen());
+
+      await tester.enterText(find.byType(TextField).first, '000000');
+      await tester.tap(find.text(l10n.verifyEmailSubmit).last);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.verifyEmailErrorCode), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, '123456');
+      await tester.tap(find.text(l10n.verifyEmailSubmit).last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.verifyEmailDone), findsOneWidget);
+      expect(find.text(l10n.verifyEmailErrorCode), findsNothing);
     });
 
     testWidgets('the devices list names this one and offers to drop the others',
